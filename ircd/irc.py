@@ -177,8 +177,8 @@ class Handler(object):
 
     @validate(nickname=True)
     def user(self, msg):
-        username, hostname, servername, realname = msg.args
-        self.irc.set_ident(self.client, username, hostname, servername, realname)
+        username, mode, _, realname = msg.args
+        self.irc.set_ident(self.client, username, realname)
 
     @validate(identity=True)
     def ping(self, msg):
@@ -213,12 +213,16 @@ class IRC(object):
         self.running = True
         self.incoming = Queue()
         self.created = datetime.utcnow()
-        self.worker = Thread(target=self.main)
-        self.worker.setDaemon(True)
-        self.worker.start()
+
+        self.worker = None
 
         self.clients = {}
         self.channels = {}
+
+    def start(self):
+        self.worker = Thread(target=self.main)
+        self.worker.setDaemon(True)
+        self.worker.start()
 
     def stop(self):
         self.running = False
@@ -226,10 +230,10 @@ class IRC(object):
     def main(self):
         while self.running:
             client, msg = self.incoming.get()
-            msg = IRCMessage(msg[0], msg[1], *msg[2])
             self.dispatch(client, msg)
 
     def dispatch(self, client, msg):
+        msg = IRCMessage(msg[0], msg[1], *msg[2])
         handler = Handler(self, client)
         handler(msg)
 
@@ -252,19 +256,21 @@ class IRC(object):
         client.nickname = nickname
         self.clients[client.nickname] = client
 
-        client.send(msg)
+        if client.has_identity:
+            client.send(msg)
 
-        if old:
-            del self.clients[old]
-            # FIXME need
-            for channel in self.channels.values():
-                if channel.update_nick(old, nickname):
-                    self.send_to_channel(client, channel.name, msg, skip_self=True)
+            if old:
+                del self.clients[old]
+                # FIXME need
+                for channel in self.channels.values():
+                    if channel.update_nick(old, nickname):
+                        self.send_to_channel(client, channel.name, msg, skip_self=True)
 
-    def set_ident(self, client, username, hostname, servername, realname):
-        client.username, client.hostname, client.servername, client.realname = username, hostname, servername, realname
+    def set_ident(self, client, username, realname):
+        client.username, client.realname = username, realname
 
-        client.send(IRCMessage.reply_welcome(self.host, client.nickname, client.nickname, client.username, client.hostname))
+        client.send(IRCMessage.nick(client.identity, client.nickname))
+        client.send(IRCMessage.reply_welcome(self.host, client.nickname, client.nickname, client.username, client.address))
         client.send(IRCMessage.reply_yourhost(self.host, client.nickname, SERVER_NAME, SERVER_VERSION))
         client.send(IRCMessage.reply_created(self.host, client.nickname, self.created))
         client.send(IRCMessage.reply_myinfo(self.host, client.nickname, SERVER_NAME, SERVER_VERSION))

@@ -32,14 +32,12 @@ def parsemsg(s):
 
 # FIXME set a timeout and drop if they dont ident in N seconds
 class Client(object):
-    def __init__(self, irc, socket, address):
-        self.socket = socket
+    def __init__(self, irc, sock, address):
+        self.socket = sock
         self.address = address
 
         self.nickname = None
         self.username = None
-        self.hostname = None
-        self.servername = None
         self.realname = None
         self.mode = ""
 
@@ -47,6 +45,16 @@ class Client(object):
 
         self.outgoing = Queue()
         self.running = True
+
+        self.reader_thread = None
+        self.writer_thread = None
+
+    @property
+    def identity(self):
+        return "{nickname}!{username}@{address}".format(nickname=self.nickname, username=self.username,
+                                                        address=self.address)
+
+    def start(self):
         self.reader_thread = Thread(target=self.reader_main)
         self.reader_thread.setDaemon(True)
         self.reader_thread.start()
@@ -54,11 +62,6 @@ class Client(object):
         self.writer_thread = Thread(target=self.writer_main)
         self.writer_thread.setDaemon(True)
         self.writer_thread.start()
-
-    @property
-    def identity(self):
-        return "{nickname}!{username}@{hostname}".format(nickname=self.nickname, username=self.username,
-                                                         hostname=self.hostname)
 
     def stop(self):
         if self.socket:
@@ -82,7 +85,7 @@ class Client(object):
 
     @property
     def has_identity(self):
-        return self.has_nickname and all([self.username, self.hostname, self.servername, self.realname])
+        return self.has_nickname and all([self.username, self.realname])
 
     def reader_main(self):
         buffer = ""
@@ -135,7 +138,8 @@ class Server(object):
 
     def on_connect(self, client_sock, address):
         log.info("new client connection %s", address)
-        Client(self.irc, self.setup_client_socket(client_sock), address)
+        client = Client(self.irc, self.setup_client_socket(client_sock), address)
+        client.start()
 
     def serve(self):
         self.server_sock = self.create_socket()

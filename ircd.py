@@ -18,6 +18,7 @@ def main():
 
     host = socket.getfqdn(ADDRESS[0])
     irc = IRC(host)
+    irc.start()
     server = Server(irc, ADDRESS, KEY_FILE)
     server.serve()
 
