@@ -4,6 +4,8 @@ monkey.patch_all()
 import logging
 import socket
 
+import gevent
+
 from ircd import Server, IRC
 
 
@@ -13,12 +15,20 @@ KEY_FILE = "key.pem"
 log = logging.getLogger("ircd")
 
 
+def irc_worker(irc):
+    while True:
+        client, msg = irc.incoming.get()
+        irc.process(client, msg)
+
+
 def main():
     logging.basicConfig(level=logging.DEBUG)
 
     host = socket.getfqdn(ADDRESS[0])
     irc = IRC(host)
-    irc.start()
+
+    gevent.spawn(irc_worker, irc)
+
     server = Server(irc, ADDRESS, KEY_FILE)
     server.serve()
 

@@ -214,30 +214,15 @@ class IRC(object):
         self.incoming = Queue()
         self.created = datetime.utcnow()
 
-        self.worker = None
-
         self.clients = {}
         self.channels = {}
 
-    def start(self):
-        self.worker = Thread(target=self.main)
-        self.worker.setDaemon(True)
-        self.worker.start()
-
-    def stop(self):
-        self.running = False
-
-    def main(self):
-        while self.running:
-            client, msg = self.incoming.get()
-            self.dispatch(client, msg)
-
-    def dispatch(self, client, msg):
+    def process(self, client, msg):
         msg = IRCMessage(msg[0], msg[1], *msg[2])
         handler = Handler(self, client)
         handler(msg)
 
-    def process(self, client, msg):
+    def submit(self, client, msg):
         self.incoming.put((client, msg))
 
     def set_nick(self, client, nickname):
@@ -246,9 +231,6 @@ class IRC(object):
 
         if nickname in self.clients:
             raise IRCError(IRCMessage.error_nick_in_use(client.identity))
-
-        if not client.nickname:
-            log.info("%s connected", client.nickname)
 
         old = client.nickname
         msg = IRCMessage.nick(client.identity, nickname)
@@ -269,14 +251,16 @@ class IRC(object):
     def set_ident(self, client, username, realname):
         client.username, client.realname = username, realname
 
+        log.info("%s connected", client.identity)
+
         client.send(IRCMessage.nick(client.identity, client.nickname))
-        client.send(IRCMessage.reply_welcome(self.host, client.nickname, client.nickname, client.username, client.address))
+        client.send(IRCMessage.reply_welcome(self.host, client.nickname, client.nickname, client.username, client.address[0]))
         client.send(IRCMessage.reply_yourhost(self.host, client.nickname, SERVER_NAME, SERVER_VERSION))
         client.send(IRCMessage.reply_created(self.host, client.nickname, self.created))
         client.send(IRCMessage.reply_myinfo(self.host, client.nickname, SERVER_NAME, SERVER_VERSION))
 
     def drop_client(self, client):
-        log.info("%s disconnected", client.nickname)
+        log.info("%s disconnected", client.identity)
         if client.nickname and client.nickname in self.clients:
             del self.clients[client.nickname]
         client.stop()
@@ -289,7 +273,7 @@ class IRC(object):
 
         channel.join(client.nickname, key=key)
 
-        self.send_to_channel(client, name, IRCMessage.join(client.nickname, name))
+        self.send_to_channel(client, name, IRCMessage.join(client.identity, name))
 
         if channel.topic:
             client.send(IRCMessage.reply_topic(self.host, client.nickname, channel))
@@ -305,8 +289,8 @@ class IRC(object):
         channel = self.channels.get(name.lower())
         if not channel:
             return
+        self.send_to_channel(client, name, IRCMessage.part(client.identity, name))
         channel.part(client.nickname)
-        self.send_to_channel(client, name, IRCMessage.part(client.nickname, name))
 
     def send_to_channel(self, client, channel_name, msg, skip_self=False):
         channel = self.channels.get(channel_name.lower())

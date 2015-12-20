@@ -1,7 +1,7 @@
 import ssl
 import logging
 import socket
-from threading import Thread, Event
+from threading import Thread
 from Queue import Queue
 
 log = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class Client(object):
     @property
     def identity(self):
         return "{nickname}!{username}@{address}".format(nickname=self.nickname, username=self.username,
-                                                        address=self.address)
+                                                        address=self.address[0])
 
     def start(self):
         self.reader_thread = Thread(target=self.reader_main)
@@ -99,7 +99,7 @@ class Client(object):
             while TERMINATOR in buffer:
                 line, buffer = buffer.split(TERMINATOR, 1)
                 log.debug(">>> %s", line)
-                self.irc.process(self, parsemsg(line))
+                self.irc.submit(self, parsemsg(line))
 
     def writer_main(self):
         while self.running:
