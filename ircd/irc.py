@@ -12,6 +12,11 @@ CHAN_START_CHARS = "&#!+"
 log = logging.getLogger(__name__)
 
 
+class IRCError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+
 class Prefix(object):
     def __init__(self, prefix):
         self.prefix = prefix
@@ -24,7 +29,7 @@ class IRCMessage(object):
         self.args = args
 
     def __str__(self):
-        return u"{}<command={}, args={}, prefix={}>".format(self.__class__.__name__, self.command, self.args,
+        return "{}<command={}, args={}, prefix={}>".format(self.__class__.__name__, self.command, self.args,
                                                             self.prefix)
 
     def format(self):
@@ -80,6 +85,18 @@ class IRCMessage(object):
         return cls(prefix, "355", target, channel.name, "End of /NAMES list.")
 
     @classmethod
+    def error_nick_in_use(cls, prefix, nickname):
+        return cls(prefix, "433", nickname)
+
+    @classmethod
+    def error_not_in_channel(cls, prefix):
+        return cls(prefix, "441")
+
+    @classmethod
+    def error_no_such_channel(cls, prefix, name):
+        return cls(prefix, "403", name)
+
+    @classmethod
     def nick(cls, prefix, nickname):
         return cls(prefix, "NICK", nickname)
 
@@ -99,11 +116,11 @@ class IRCMessage(object):
 def validate(nickname=False, identity=False):
     def _validate(func):
         @wraps(func)
-        def __validate(self, client, msg):
-            if (nickname and not client.has_nickname) or (identity and not client.has_identity):
-                self.irc.drop_client(client)
+        def __validate(self,msg):
+            if (nickname and not self.client.has_nickname) or (identity and not self.client.has_identity):
+                self.irc.drop_client(self.client)
                 return None
-            return func(self, client, msg)
+            return func(self, msg)
         return __validate
     return _validate
 
@@ -139,52 +156,55 @@ class Channel(object):
 
 
 class Handler(object):
-    def __init__(self, irc):
+    def __init__(self, irc, client):
         self.irc = irc
+        self.client = client
 
-    def __call__(self, client, msg):
+    def __call__(self, msg):
         handler = msg.command.lower()
         callback = getattr(self, handler, None)
         if callback and callable(callback):
             try:
-                callback(client, msg)
+                callback(msg)
+            except IRCError as e:
+                self.client.send(e.msg)
             except:
                 log.exception("error applying message: %s", msg)
 
-    def nick(self, client, msg):
+    def nick(self, msg):
         nickname = msg.args[0]
-        self.irc.set_nick(client, nickname)
+        self.irc.set_nick(self.client, nickname)
 
     @validate(nickname=True)
-    def user(self, client, msg):
+    def user(self, msg):
         username, hostname, servername, realname = msg.args
-        self.irc.set_ident(client, username, hostname, servername, realname)
+        self.irc.set_ident(self.client, username, hostname, servername, realname)
 
     @validate(identity=True)
-    def ping(self, client, msg):
-        client.send(IRCMessage.reply_pong(self.irc.host, msg.args[0]))
+    def ping(self, msg):
+        self.client.send(IRCMessage.reply_pong(self.irc.host, msg.args[0]))
 
-    def quit(self, client, _):
-        self.irc.drop_client(client)
+    def quit(self, _):
+        self.irc.drop_client(self.client)
 
     @validate(identity=True)
-    def join(self, client, msg):
+    def join(self, msg):
         chan_name = msg.args[0]
-        self.irc.validate_chan_name(chan_name)
-        self.irc.join_channel(chan_name, client)
+        self.irc.validate_chan_name(self.client, chan_name)
+        self.irc.join_channel(chan_name, self.client)
 
     @validate(identity=True)
-    def part(self, client, msg):
+    def part(self, msg):
         chan_name = msg.args[0]
-        self.irc.validate_chan_name(chan_name)
-        self.irc.part_channel(chan_name, client)
+        self.irc.validate_chan_name(self.client, chan_name)
+        self.irc.part_channel(chan_name, self.client)
 
     @validate(identity=True)
-    def privmsg(self, client, msg):
+    def privmsg(self, msg):
         if msg.args[0] in CHAN_START_CHARS:
             chan_name = msg.args[0]
-            self.irc.validate_chan_name(chan_name)
-            self.irc.send_private_message(client, chan_name, msg.args[1])
+            self.irc.validate_chan_name(self.client, chan_name)
+            self.irc.send_private_message(self.client, chan_name, msg.args[1])
 
 
 class IRC(object):
@@ -210,8 +230,8 @@ class IRC(object):
             self.dispatch(client, msg)
 
     def dispatch(self, client, msg):
-        handler = Handler(self)
-        handler(client, msg)
+        handler = Handler(self, client)
+        handler(msg)
 
     def process(self, client, msg):
         self.incoming.put((client, msg))
@@ -221,18 +241,25 @@ class IRC(object):
             return
 
         if nickname in self.clients:
-            raise ValueError("nickname {} already in use".format(nickname))
+            raise IRCError(IRCMessage.error_nick_in_use(client.identity))
 
-        log.info("%s connected", client.nickname)
+        if not client.nickname:
+            log.info("%s connected", client.nickname)
+
         old = client.nickname
+        msg = IRCMessage.nick(client.identity, nickname)
+
         client.nickname = nickname
         self.clients[client.nickname] = client
 
+        client.send(msg)
+
         if old:
             del self.clients[old]
+            # FIXME need
             for channel in self.channels.values():
                 if channel.update_nick(old, nickname):
-                    self.send_to_channel(client, channel.name, IRCMessage.nick(client.identity, nickname))
+                    self.send_to_channel(client, channel.name, msg, skip_self=True)
 
     def set_ident(self, client, username, hostname, servername, realname):
         client.username, client.hostname, client.servername, client.realname = username, hostname, servername, realname
@@ -280,7 +307,7 @@ class IRC(object):
         if not channel:
             return
         if client.nickname not in channel.members:
-            raise ValueError("must be a member of the channel")
+            raise IRCError(IRCMessage.error_not_in_channel(client.identity))
 
         for member in channel.members:
             if skip_self and member == client.nickname:
@@ -292,6 +319,6 @@ class IRC(object):
     def send_private_message(self, client, channel_name, text):
         self.send_to_channel(client, channel_name, IRCMessage.private_message(client.identity, channel_name, text), skip_self=True)
 
-    def validate_chan_name(self, chan_name):
+    def validate_chan_name(self, client, chan_name):
         if not chan_name[0] in CHAN_START_CHARS:
-            raise ValueError("bad chan name")
+            raise IRCError(IRCMessage.error_no_such_channel(client.identity, chan_name))
