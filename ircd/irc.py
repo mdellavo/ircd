@@ -2,7 +2,6 @@ import string
 import logging
 from Queue import Queue
 from functools import wraps
-from threading import Thread
 from datetime import datetime
 
 SERVER_NAME = "ircd"
@@ -78,7 +77,7 @@ class IRCMessage(object):
 
     @classmethod
     def reply_names(cls, prefix, target, channel):
-        return cls(prefix, "353", target, "=", channel.name, " ".join(channel.members))
+        return cls(prefix, "353", target, "=", channel.name, " ".join(sorted(channel.members)))
 
     @classmethod
     def reply_endnames(cls, prefix, target, channel):
@@ -204,7 +203,10 @@ class Handler(object):
         if msg.args[0] in CHAN_START_CHARS:
             chan_name = msg.args[0]
             self.irc.validate_chan_name(self.client, chan_name)
-            self.irc.send_private_message(self.client, chan_name, msg.args[1])
+            self.irc.send_private_message_to_channel(self.client, chan_name, msg.args[1])
+        elif msg.args[0] in self.irc.clients:
+            nickname = msg.args[0]
+            self.irc.send_private_message_to_client(self.client, nickname, msg.args[1])
 
 
 class IRC(object):
@@ -295,7 +297,7 @@ class IRC(object):
     def send_to_channel(self, client, channel_name, msg, skip_self=False):
         channel = self.channels.get(channel_name.lower())
         if not channel:
-            return
+            raise IRCError(IRCMessage.error_no_such_channel(client.identity, channel_name))
         if client.nickname not in channel.members:
             raise IRCError(IRCMessage.error_not_in_channel(client.identity))
 
@@ -306,8 +308,12 @@ class IRC(object):
             if member_client:
                 member_client.send(msg)
 
-    def send_private_message(self, client, channel_name, text):
+    def send_private_message_to_channel(self, client, channel_name, text):
         self.send_to_channel(client, channel_name, IRCMessage.private_message(client.identity, channel_name, text), skip_self=True)
+
+    def send_private_message_to_client(self, client, nickname, text):
+        other = self.clients[nickname]
+        other.send(IRCMessage.private_message(client.identity, nickname, text))
 
     def validate_chan_name(self, client, chan_name):
         if not chan_name[0] in CHAN_START_CHARS:

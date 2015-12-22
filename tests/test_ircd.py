@@ -39,7 +39,10 @@ class TestIRC(TestCase):
             ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION)
         ])
 
-    def join(self, client, chan):
+    def join(self, client, chan, others=None):
+
+        members = sorted([client.nickname] + (others or []))
+
         self.process(client, [
             "JOIN #"
         ])
@@ -47,8 +50,17 @@ class TestIRC(TestCase):
         self.assertReplies(client, [
             ":{} JOIN :{}".format(client.identity, chan),
             ":localhost 331 {} :{}".format(client.nickname, chan),
-            ":localhost 353 {} = {} :{}".format(client.nickname, chan, client.nickname),
+            ":localhost 353 {} = {} :{}".format(client.nickname, chan, " ".join(members)),
             ":localhost 355 {} {} :End of /NAMES list.".format(client.nickname, chan),
+        ])
+
+    def part(self, client, chan):
+        self.process(client, [
+            "PART {}".format(chan)
+        ])
+
+        self.assertReplies(client, [
+            ":{} PART :{}".format(client.identity, chan),
         ])
 
     def test_ident(self):
@@ -70,21 +82,60 @@ class TestIRC(TestCase):
         self.assertEqual(channel.members, ["foo"])
         self.assertEqual(channel.owner, "foo")
 
-        self.process(client, [
-            "PART #"
-        ])
-
-        self.assertReplies(client, [
-            ":foo!foo@127.0.0.1 PART :#",
-        ])
-
+        self.part(client, "#")
         self.assertEqual(channel.members, [])
 
     def test_privmsg_channel(self):
-        client = self.get_client()
-        self.ident(client, "foo")
-        self.join(client, "#")
-        self.process(client, [
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+
+        # not joined yet
+        self.process(client_a, [
             "PRIVMSG # :hello world"
         ])
-        self.assertReplies(client, [])  # no reply to self
+        self.assertReplies(client_a, [
+            ":foo!foo@127.0.0.1 403 :#"
+        ])
+
+        self.join(client_a, "#")
+
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+        self.join(client_b, "#", others=[client_a.nickname])
+
+        channel = self.irc.channels["#"]
+        self.assertEqual(channel.members, ["foo", "bar"])
+
+        self.process(client_a, [
+            "PRIVMSG # :hello world"
+        ])
+        self.assertReplies(client_a, [
+            ":bar!bar@127.0.0.1 JOIN :#"
+        ])  # no reply to self
+
+        self.assertReplies(client_b, [
+            ":foo!foo@127.0.0.1 PRIVMSG # :hello world"
+        ])
+
+        self.part(client_a, "#")
+        self.process(client_a, [
+            "PRIVMSG # :hello world"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@127.0.0.1 441"
+        ])
+
+    def test_privmsg_client(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+
+        self.process(client_a, [
+            "PRIVMSG bar :hello world"
+        ])
+
+        self.assertReplies(client_b, [
+            ":foo!foo@127.0.0.1 PRIVMSG bar :hello world"
+        ])
