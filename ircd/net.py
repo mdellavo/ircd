@@ -37,9 +37,10 @@ class Client(object):
         self.address = address
 
         self.nickname = None
-        self.username = None
+        self.user = None
         self.realname = None
         self.mode = ""
+        self.host = socket.getfqdn(address[0]) or address[0]
 
         self.irc = irc
 
@@ -51,8 +52,7 @@ class Client(object):
 
     @property
     def identity(self):
-        return "{nickname}!{username}@{address}".format(nickname=self.nickname, username=self.username,
-                                                        address=self.address[0])
+        return "{nickname}!{user}@{host}".format(nickname=self.nickname, user=self.user, host=self.host)
 
     def start(self):
         self.reader_thread = Thread(target=self.reader_main)
@@ -85,7 +85,7 @@ class Client(object):
 
     @property
     def has_identity(self):
-        return self.has_nickname and all([self.username, self.realname])
+        return self.has_nickname and all([self.user, self.realname])
 
     def reader_main(self):
         buffer = ""

@@ -94,7 +94,7 @@ class TestIRC(TestCase):
             "PRIVMSG # :hello world"
         ])
         self.assertReplies(client_a, [
-            ":foo!foo@127.0.0.1 403 :#"
+            ":foo!foo@localhost 403 :#"
         ])
 
         self.join(client_a, "#")
@@ -110,11 +110,11 @@ class TestIRC(TestCase):
             "PRIVMSG # :hello world"
         ])
         self.assertReplies(client_a, [
-            ":bar!bar@127.0.0.1 JOIN :#"
+            ":bar!bar@localhost JOIN :#"
         ])  # no reply to self
 
         self.assertReplies(client_b, [
-            ":foo!foo@127.0.0.1 PRIVMSG # :hello world"
+            ":foo!foo@localhost PRIVMSG # :hello world"
         ])
 
         self.part(client_a, "#")
@@ -122,7 +122,7 @@ class TestIRC(TestCase):
             "PRIVMSG # :hello world"
         ])
         self.assertReplies(client_a, [
-            ":foo!foo@127.0.0.1 441"
+            ":foo!foo@localhost 441"
         ])
 
     def test_privmsg_client(self):
@@ -137,5 +137,5 @@ class TestIRC(TestCase):
         ])
 
         self.assertReplies(client_b, [
-            ":foo!foo@127.0.0.1 PRIVMSG bar :hello world"
+            ":foo!foo@localhost PRIVMSG bar :hello world"
         ])

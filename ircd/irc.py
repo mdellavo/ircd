@@ -20,10 +20,28 @@ class Prefix(object):
     def __init__(self, prefix):
         self.prefix = prefix
 
+        self.name = None
+
+        self.nickname = None
+        self.user = None
+        self.host = None
+
+        if "@" in prefix:
+            if "!" in prefix:
+                self.nickname, rest = prefix.split("!", 1)
+                self.user, self.host = rest.split("@", 1)
+            else:
+                self.nickname, self.host = prefix.split("@", 1)
+        else:
+            self.name = prefix
+
+    def __str__(self):
+        return self.prefix
+
 
 class IRCMessage(object):
     def __init__(self, prefix, command, *args):
-        self.prefix = prefix
+        self.prefix = Prefix(prefix)
         self.command = command
         self.args = args
 
@@ -34,7 +52,7 @@ class IRCMessage(object):
     def format(self):
         parts = []
         if self.prefix:
-            parts.append(":" + self.prefix)
+            parts.append(":" + str(self.prefix))
         parts.append(self.command)
         if self.args:
             head = self.args[:-1]
@@ -47,9 +65,9 @@ class IRCMessage(object):
         return rv
 
     @classmethod
-    def reply_welcome(cls, prefix, target, nickname, username, hostname):
+    def reply_welcome(cls, prefix, target, nickname, user, hostname):
         return cls(prefix, "001", target,
-                   "Welcome to the Internet Relay Network {}!{}@{}".format(nickname, username, hostname))
+                   "Welcome to the Internet Relay Network {}!{}@{}".format(nickname, user, hostname))
 
     @classmethod
     def reply_yourhost(cls, prefix, target, name, version):
@@ -176,8 +194,8 @@ class Handler(object):
 
     @validate(nickname=True)
     def user(self, msg):
-        username, mode, _, realname = msg.args
-        self.irc.set_ident(self.client, username, realname)
+        user, mode, _, realname = msg.args
+        self.irc.set_ident(self.client, user, realname)
 
     @validate(identity=True)
     def ping(self, msg):
@@ -250,13 +268,13 @@ class IRC(object):
                     if channel.update_nick(old, nickname):
                         self.send_to_channel(client, channel.name, msg, skip_self=True)
 
-    def set_ident(self, client, username, realname):
-        client.username, client.realname = username, realname
+    def set_ident(self, client, user, realname):
+        client.user, client.realname = user, realname
 
         log.info("%s connected", client.identity)
 
         client.send(IRCMessage.nick(client.identity, client.nickname))
-        client.send(IRCMessage.reply_welcome(self.host, client.nickname, client.nickname, client.username, client.address[0]))
+        client.send(IRCMessage.reply_welcome(self.host, client.nickname, client.nickname, client.user, client.host))
         client.send(IRCMessage.reply_yourhost(self.host, client.nickname, SERVER_NAME, SERVER_VERSION))
         client.send(IRCMessage.reply_created(self.host, client.nickname, self.created))
         client.send(IRCMessage.reply_myinfo(self.host, client.nickname, SERVER_NAME, SERVER_VERSION))
