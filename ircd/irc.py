@@ -41,7 +41,7 @@ class Prefix(object):
 
 class IRCMessage(object):
     def __init__(self, prefix, command, *args):
-        self.prefix = Prefix(prefix)
+        self.prefix = Prefix(prefix) if prefix else None
         self.command = command
         self.args = args
 
@@ -128,6 +128,10 @@ class IRCMessage(object):
     @classmethod
     def private_message(cls, prefix, target, msg):
         return cls(prefix, "PRIVMSG", target, msg)
+
+    @classmethod
+    def ping(cls, server):
+        return cls(None, "PING", server)
 
 
 def validate(nickname=False, identity=False):
@@ -336,3 +340,6 @@ class IRC(object):
     def validate_chan_name(self, client, chan_name):
         if not chan_name[0] in CHAN_START_CHARS:
             raise IRCError(IRCMessage.error_no_such_channel(client.identity, chan_name))
+
+    def ping(self, client):
+        client.send(IRCMessage.ping(self.host))

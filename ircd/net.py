@@ -1,14 +1,15 @@
 import ssl
+import time
 import logging
 import socket
 from threading import Thread
-from Queue import Queue
+from Queue import Queue, Empty
 
 log = logging.getLogger(__name__)
 
 BACKLOG = 10
 TERMINATOR = "\r\n"
-
+PING_INTERVAL=10
 
 # https://stackoverflow.com/questions/930700/python-parsing-irc-messages
 def parsemsg(s):
@@ -102,10 +103,22 @@ class Client(object):
                 self.irc.submit(self, parsemsg(line))
 
     def writer_main(self):
+        last_ping = time.time()
         while self.running:
-            msg = self.outgoing.get()
-            log.debug("<<< %s", msg.format())
-            self.socket.write(msg.format() + TERMINATOR)
+            try:
+                msg = self.outgoing.get(timeout=PING_INTERVAL)
+            except Empty:
+                msg = None
+
+            if msg:
+                log.debug("<<< %s", msg.format())
+                self.socket.write(msg.format() + TERMINATOR)
+
+            diff = time.time() - last_ping
+            if diff > PING_INTERVAL:
+                self.irc.ping(self)
+                last_ping = time.time()
+
 
 
 class Server(object):
