@@ -9,7 +9,8 @@ log = logging.getLogger(__name__)
 
 BACKLOG = 10
 TERMINATOR = "\r\n"
-PING_INTERVAL=10
+PING_INTERVAL = 10
+PING_GRACE = 5
 
 # https://stackoverflow.com/questions/930700/python-parsing-irc-messages
 def parsemsg(s):
@@ -51,6 +52,8 @@ class Client(object):
         self.reader_thread = None
         self.writer_thread = None
 
+        self.ping_count = 0
+
     @property
     def identity(self):
         return "{nickname}!{user}@{host}".format(nickname=self.nickname, user=self.user, host=self.host)
@@ -65,10 +68,11 @@ class Client(object):
         self.writer_thread.start()
 
     def stop(self):
+        self.running = False
         if self.socket:
             self.disconnect()
 
-        self.running = False
+    def join(self):
         for thread in [self.reader_thread, self.writer_thread]:
             thread.join()
 
@@ -79,6 +83,9 @@ class Client(object):
         self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
         self.socket = None
+
+    def clear_ping_count(self):
+        self.ping_count = 0
 
     @property
     def has_nickname(self):
@@ -92,10 +99,18 @@ class Client(object):
         buffer = ""
 
         while self.socket is not None and self.running:
-            data = self.socket.recv(1024)
+            try:
+                data = self.socket.recv(1024)
+            except socket.error as e:
+                if self.running:
+                    log.error("error reading from client: %s", e)
+                data = None
+
             if not data:
-                self.running = False
+                if self.running:
+                    self.irc.drop_client(self)
                 break
+
             buffer += data
             while TERMINATOR in buffer:
                 line, buffer = buffer.split(TERMINATOR, 1)
@@ -112,13 +127,22 @@ class Client(object):
 
             if msg:
                 log.debug("<<< %s", msg.format())
-                self.socket.write(msg.format() + TERMINATOR)
+                try:
+                    self.socket.write(msg.format() + TERMINATOR)
+                except socket.error as e:
+                    if self.running:
+                        log.error("error writing to client: %s", e)
+                        self.irc.drop_client(self)
+                    break
 
             diff = time.time() - last_ping
             if diff > PING_INTERVAL:
                 self.irc.ping(self)
                 last_ping = time.time()
-
+                self.ping_count += 1
+                if self.ping_count > PING_GRACE:
+                    self.irc.drop_client(self)
+                    break
 
 
 class Server(object):

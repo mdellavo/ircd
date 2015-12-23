@@ -196,6 +196,9 @@ class Handler(object):
         nickname = msg.args[0]
         self.irc.set_nick(self.client, nickname)
 
+    def pong(self, _):
+        self.client.clear_ping_count()
+
     @validate(nickname=True)
     def user(self, msg):
         user, mode, _, realname = msg.args
