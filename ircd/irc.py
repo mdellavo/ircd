@@ -39,6 +39,50 @@ class Prefix(object):
         return self.prefix
 
 
+class Mode(object):
+
+    AWAY = "a"
+    INVISIBLE = "i"
+    WALLOPS = "w"
+    RESTRICTED = "r"
+    OPERATOR = "o"
+    LOCAL_OPERATOR = "O"
+    SERVER_NOTICES = "s"
+
+    ALL_USER_MODES = (AWAY, INVISIBLE, WALLOPS, RESTRICTED, OPERATOR, LOCAL_OPERATOR, SERVER_NOTICES)
+
+    def __init__(self):
+        self.mode = ""
+
+    def __str__(self):
+        return sorted(self.mode)
+
+    def has_flag(self, flag):
+        return flag in self.mode
+
+    def clear_flags(self, flags):
+        cleared_flags = [flag for flag in flags if flag in self.mode]
+        self.mode = [mode for mode in self.mode if mode not in cleared_flags]
+        return "".join(cleared_flags)
+
+    def set_user_flags(self, flags):
+        invalid_flags = [flag for flag in flags if flag not in self.ALL_USER_MODES]
+        if invalid_flags:
+            raise ValueError("Invalid mode: " + "".join(invalid_flags))
+        applied_flags = [flag for flag in flags if flag not in self.mode]
+        if applied_flags:
+            self.mode = sorted(self.mode + "".join(applied_flags))
+        return "".join(applied_flags)
+
+    user_is_away = property(lambda self: self.has_flag(self.AWAY))
+    user_is_invisible = property(lambda self: self.has_flag(self.INVISIBLE))
+    user_has_wallops = property(lambda self: self.has_flag(self.WALLOPS))
+    user_is_restricted = property(lambda self: self.has_flag(self.RESTRICTED))
+    user_is_operator = property(lambda self: self.has_flag(self.OPERATOR))
+    user_is_local_operator = property(lambda self: self.has_flag(self.OPERATOR))
+    user_has_server_notices = property(lambda self: self.has_flag(self.SERVER_NOTICES))
+
+
 class IRCMessage(object):
     def __init__(self, prefix, command, *args):
         self.prefix = Prefix(prefix) if prefix else None
@@ -111,7 +155,19 @@ class IRCMessage(object):
 
     @classmethod
     def error_no_such_channel(cls, prefix, name):
-        return cls(prefix, "403", name)
+        return cls(prefix, "403", "{channel} No such nick/channel".format(channel=name))
+
+    @classmethod
+    def error_no_such_nickname(cls, prefix, name):
+        return cls(prefix, "401", "{nickname} No such nick/channel".format(nickname=name))
+
+    @classmethod
+    def error_channel_operator_needed(cls, prefix, name):
+        return cls(prefix, "482", "{channel} You're not channel operator".format(channel=name))
+
+    @classmethod
+    def error_users_dont_match(cls, prefix):
+        return cls(prefix, "502", "Cant change mode for other users")
 
     @classmethod
     def nick(cls, prefix, nickname):
@@ -133,6 +189,10 @@ class IRCMessage(object):
     def ping(cls, server):
         return cls(None, "PING", server)
 
+    @classmethod
+    def mode(cls, prefix, target, flags):
+        return cls(prefix, "MODE", target, flags)
+
 
 def validate(nickname=False, identity=False):
     def _validate(func):
@@ -153,7 +213,7 @@ class Channel(object):
         self.key = key
         self.topic = None
         self.members = [owner]
-        self.mode = ""
+        self.mode = Mode()
 
     def join(self, nick, key=None):
         if self.key and key != self.key:
@@ -174,6 +234,12 @@ class Channel(object):
             self.members.remove(old)
             self.members.append(new)
         return is_member
+
+    def set_mode(self, flags):
+        pass
+
+    def clear_mode(self, flags):
+        pass
 
 
 class Handler(object):
@@ -214,24 +280,34 @@ class Handler(object):
     @validate(identity=True)
     def join(self, msg):
         chan_name = msg.args[0]
-        self.irc.validate_chan_name(self.client, chan_name)
         self.irc.join_channel(chan_name, self.client)
 
     @validate(identity=True)
     def part(self, msg):
         chan_name = msg.args[0]
-        self.irc.validate_chan_name(self.client, chan_name)
         self.irc.part_channel(chan_name, self.client)
 
     @validate(identity=True)
     def privmsg(self, msg):
-        if msg.args[0] in CHAN_START_CHARS:
-            chan_name = msg.args[0]
-            self.irc.validate_chan_name(self.client, chan_name)
-            self.irc.send_private_message_to_channel(self.client, chan_name, msg.args[1])
-        elif msg.args[0] in self.irc.clients:
-            nickname = msg.args[0]
-            self.irc.send_private_message_to_client(self.client, nickname, msg.args[1])
+        target = msg.args[0]
+
+        if target in self.irc.channels:
+            self.irc.send_private_message_to_channel(self.client, target, msg.args[1])
+        elif target in self.irc.clients:
+            self.irc.send_private_message_to_client(self.client, target, msg.args[1])
+        else:
+            self.client.send(IRCMessage.error_no_such_channel(self.client.identity, target))
+
+
+    @validate(identity=True)
+    def mode(self, msg):
+        target = msg.args[0]
+        flags = msg.args[1]
+
+        if target in self.irc.clients:
+            self.irc.set_user_mode(self.client, target, flags)
+        elif target in self.irc.channels:
+            self.irc.set_channel_mode(self.client, target, flags)
 
 
 class IRC(object):
@@ -257,7 +333,7 @@ class IRC(object):
             return
 
         if nickname in self.clients:
-            raise IRCError(IRCMessage.error_nick_in_use(client.identity))
+            raise IRCError(IRCMessage.error_nick_in_use(client.identity, nickname))
 
         old = client.nickname
         msg = IRCMessage.nick(client.identity, nickname)
@@ -265,12 +341,15 @@ class IRC(object):
         client.nickname = nickname
         self.clients[client.nickname] = client
 
+        if not client.mode:
+            client.mode = Mode()
+
         if client.has_identity:
             client.send(msg)
 
             if old:
                 del self.clients[old]
-                # FIXME need
+
                 for channel in self.channels.values():
                     if channel.update_nick(old, nickname):
                         self.send_to_channel(client, channel.name, msg, skip_self=True)
@@ -293,8 +372,13 @@ class IRC(object):
         client.stop()
 
     def join_channel(self, name, client, key=None):
-        channel = self.channels.get(name.lower())
+        name = name.lower()
+
+        channel = self.channels.get(name)
         if not channel:
+            if name[0] not in CHAN_START_CHARS:
+                raise IRCError(IRCMessage.error_no_such_channel(client.identity, name))
+
             channel = Channel(name, client.nickname, key=key)
             self.channels[name.lower()] = channel
 
@@ -337,12 +421,40 @@ class IRC(object):
         self.send_to_channel(client, channel_name, IRCMessage.private_message(client.identity, channel_name, text), skip_self=True)
 
     def send_private_message_to_client(self, client, nickname, text):
-        other = self.clients[nickname]
+        other = self.clients.get(nickname)
+        if not other:
+            raise IRCError(IRCMessage.error_no_such_nickname(client.identity, nickname))
         other.send(IRCMessage.private_message(client.identity, nickname, text))
-
-    def validate_chan_name(self, client, chan_name):
-        if not chan_name[0] in CHAN_START_CHARS:
-            raise IRCError(IRCMessage.error_no_such_channel(client.identity, chan_name))
 
     def ping(self, client):
         client.send(IRCMessage.ping(self.host))
+
+    def set_channel_mode(self, client, target, flags):
+        channel = self.channels[target]
+        op, flags = flags[0], flags[1:]
+
+        if op == "+":
+            channel.set_mode(flags)
+        elif op == "-":
+            channel.clear_mode(flags)
+
+    def set_user_mode(self, client, target, flags):
+        target_client = self.clients[target]
+        op, flags = flags[0], flags[1:]
+
+        to_self = client.nickname == target
+
+        if not to_self:
+            raise IRCError(IRCMessage.error_users_dont_match(client.identity))
+
+        if Mode.AWAY in flags or Mode.OPERATOR in flags:
+            return
+
+        modified = None
+        if op == "+":
+            modified = target_client.mode.set_user_flags(flags)
+        elif op == "-":
+            modified = target_client.mode.clear_flags(flags)
+
+        if modified:
+            client.send(IRCMessage.mode(client.identity, target, op + modified))

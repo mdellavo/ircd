@@ -94,7 +94,7 @@ class TestIRC(TestCase):
             "PRIVMSG # :hello world"
         ])
         self.assertReplies(client_a, [
-            ":foo!foo@localhost 403 :#"
+            ":foo!foo@localhost 403 :# No such nick/channel"
         ])
 
         self.join(client_a, "#")
@@ -139,3 +139,15 @@ class TestIRC(TestCase):
         self.assertReplies(client_b, [
             ":foo!foo@localhost PRIVMSG bar :hello world"
         ])
+
+    def test_user_mode(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+
+        self.process(client_a, [
+            "MODE foo :+i"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost MODE foo :+i"
+        ])
+        self.assertTrue(client_a.mode.user_is_invisible)

@@ -9,8 +9,9 @@ log = logging.getLogger(__name__)
 
 BACKLOG = 10
 TERMINATOR = "\r\n"
-PING_INTERVAL = 10
+PING_INTERVAL = 60
 PING_GRACE = 5
+
 
 # https://stackoverflow.com/questions/930700/python-parsing-irc-messages
 def parsemsg(s):
@@ -41,7 +42,7 @@ class Client(object):
         self.nickname = None
         self.user = None
         self.realname = None
-        self.mode = ""
+        self.mode = None
         self.host = socket.getfqdn(address[0]) or address[0]
 
         self.irc = irc
