@@ -36,7 +36,7 @@ def client_reader(irc, client, sock):
             client.feed(data)
 
         elapsed = time.time() - start
-        if elapsed > IDENT_TIMEOUT:
+        if elapsed > IDENT_TIMEOUT and not client.has_identity:
             log.error("client ident timeout: %s", client.host)
             irc.drop_client(client)
 
@@ -61,7 +61,7 @@ class AsyncServer(Server):
         return sock
 
     def on_connect(self, client_sock, address):
-        log.info("new client connection %s", address)
+        log.info("new client connection from %s", address[0])
         sock = self.setup_client_socket(client_sock)
 
         client = Client(self.irc, sock, address)
