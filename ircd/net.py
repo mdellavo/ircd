@@ -35,6 +35,7 @@ def parsemsg(s):
 # FIXME set a timeout and drop if they dont ident in N seconds
 class Client(object):
     def __init__(self, irc, sock, address):
+        self.irc = irc
         self.socket = sock
         self.address = address
 
@@ -43,27 +44,23 @@ class Client(object):
         self.realname = None
         self.host = socket.getfqdn(address[0]) or address[0]
 
-        self.irc = irc
-
         self.buffer = ""
-
         self.outgoing = Queue()
-        self.running = True
-
         self.ping_count = 0
 
     @property
     def identity(self):
-        return "{nickname}!{user}@{host}".format(nickname=self.nickname, user=self.user, host=self.host)
+        parts = [self.nickname or "(unknown)"]
+        if self.user:
+            parts.append("!")
+            parts.append(self.user)
+        parts.append("@")
+        parts.append(self.host)
+        return "".join(parts)
 
     @property
-    def is_running(self):
-        return self.running
-
-    def stop(self):
-        self.running = False
-        if self.socket:
-            self.disconnect()
+    def is_connected(self):
+        return self.socket is not None
 
     def feed(self, data):
         self.buffer += data
@@ -74,7 +71,7 @@ class Client(object):
 
     def take(self):
         last_ping = time.time()
-        while self.is_running:
+        while self.is_connected:
             try:
                 msg = self.outgoing.get(timeout=PING_INTERVAL)
             except Empty:

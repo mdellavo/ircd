@@ -401,10 +401,11 @@ class IRC(object):
         client.send(IRCMessage.reply_myinfo(self.host, client.nickname, SERVER_NAME, SERVER_VERSION))
 
     def drop_client(self, client):
-        log.info("%s disconnected", client.identity)
         if client.nickname:
             self.remove_client(client.nickname)
-        client.stop()
+        if client.is_connected:
+            log.info("%s disconnected", client.identity)
+            client.disconnect()
 
     def join_channel(self, name, client, key=None):
         channel = self.get_channel(name)
