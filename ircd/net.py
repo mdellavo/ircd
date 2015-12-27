@@ -76,6 +76,12 @@ class Client(object):
         for thread in [self.reader_thread, self.writer_thread]:
             thread.join()
 
+    def set_nickname(self, nickname):
+        self.nickname = nickname
+
+    def set_identity(self, user, realname):
+        self.user, self.realname = user, realname
+
     def send(self, msg):
         self.outgoing.put(msg)
 

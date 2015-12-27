@@ -38,13 +38,14 @@ class TestIRC(TestCase):
             ":localhost 003 {} :This server was created {}".format(nick, self.irc.created),
             ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION)
         ])
+        self.assertEqual(client.nickname, nick)
 
     def join(self, client, chan, others=None):
 
         members = sorted([client.nickname] + (others or []))
 
         self.process(client, [
-            "JOIN #"
+            "JOIN {}".format(chan)
         ])
 
         self.assertReplies(client, [
@@ -54,6 +55,10 @@ class TestIRC(TestCase):
             ":localhost 355 {} {} :End of /NAMES list.".format(client.nickname, chan),
         ])
 
+        channel = self.irc.channels.get(chan)
+        self.assertTrue(channel)
+        self.assertIn(client.nickname, channel.members)
+
     def part(self, client, chan):
         self.process(client, [
             "PART {}".format(chan)
@@ -62,6 +67,10 @@ class TestIRC(TestCase):
         self.assertReplies(client, [
             ":{} PART :{}".format(client.identity, chan),
         ])
+
+        channel = self.irc.channels.get(chan)
+        self.assertTrue(channel)
+        self.assertNotIn(client.nickname, channel.members)
 
     def test_ident(self):
         self.ident(self.get_client(), "foo")
@@ -160,7 +169,6 @@ class TestIRC(TestCase):
         self.assertReplies(client_a, [
             ":foo!foo@localhost MODE foo :-i"
         ])
-
 
         self.assertFalse(nickname.mode.user_is_invisible)
         self.assertEqual(nickname.mode.mode, "")
