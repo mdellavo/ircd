@@ -29,7 +29,7 @@ class TestIRC(TestCase):
     def ident(self, client, nick):
         self.process(client, [
             "NICK {}".format(nick),
-            "USER {} 0 * :{}".format(nick , nick)
+            "USER {} 0 * :{}".format(nick, nick)
         ])
         self.assertReplies(client, [
             ":{} NICK :{}".format(client.identity, nick),
@@ -39,6 +39,11 @@ class TestIRC(TestCase):
             ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION)
         ])
         self.assertEqual(client.nickname, nick)
+        self.assertEqual(client.user, nick)
+        self.assertEqual(client.realname, nick)
+        self.assertEqual(client.host, "localhost")
+        self.assertTrue(client.has_nickname)
+        self.assertTrue(client.has_identity)
 
     def join(self, client, chan, others=None):
 
@@ -55,7 +60,7 @@ class TestIRC(TestCase):
             ":localhost 355 {} {} :End of /NAMES list.".format(client.nickname, chan),
         ])
 
-        channel = self.irc.channels.get(chan)
+        channel = self.irc.get_channel(chan)
         self.assertTrue(channel)
         self.assertIn(client.nickname, channel.members)
 
@@ -68,7 +73,7 @@ class TestIRC(TestCase):
             ":{} PART :{}".format(client.identity, chan),
         ])
 
-        channel = self.irc.channels.get(chan)
+        channel = self.irc.get_channel(chan)
         self.assertTrue(channel)
         self.assertNotIn(client.nickname, channel.members)
 
