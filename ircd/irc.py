@@ -62,7 +62,7 @@ class Mode(object):
 
     def clear_flags(self, flags):
         cleared_flags = [flag for flag in flags if flag in self.mode]
-        self.mode = [mode for mode in self.mode if mode not in cleared_flags]
+        self.mode = "".join([mode for mode in self.mode if mode not in cleared_flags])
         return "".join(cleared_flags)
 
     def set_user_flags(self, flags):
@@ -206,6 +206,13 @@ def validate(nickname=False, identity=False):
     return _validate
 
 
+class Nickname(object):
+    def __init__(self, nickname):
+        self.nickname = nickname
+        self.mode = Mode()
+
+
+# FIXME need a NickChannel that is an abstraction over client
 class Channel(object):
     def __init__(self, name, owner, key=None):
         self.name = name
@@ -213,6 +220,7 @@ class Channel(object):
         self.key = key
         self.topic = None
         self.members = [owner]
+        self.operators = [owner]
         self.mode = Mode()
 
     def join(self, nick, key=None):
@@ -298,7 +306,6 @@ class Handler(object):
         else:
             self.client.send(IRCMessage.error_no_such_channel(self.client.identity, target))
 
-
     @validate(identity=True)
     def mode(self, msg):
         target = msg.args[0]
@@ -319,6 +326,7 @@ class IRC(object):
 
         self.clients = {}
         self.channels = {}
+        self.nicknames = {}
 
     def process(self, client, msg):
         msg = IRCMessage(msg[0], msg[1], *msg[2])
@@ -339,10 +347,10 @@ class IRC(object):
         msg = IRCMessage.nick(client.identity, nickname)
 
         client.nickname = nickname
-        self.clients[client.nickname] = client
+        self.clients[nickname] = client
 
-        if not client.mode:
-            client.mode = Mode()
+        if nickname not in self.nicknames:
+            self.nicknames[nickname] = Nickname(nickname)
 
         if client.has_identity:
             client.send(msg)
@@ -450,11 +458,13 @@ class IRC(object):
         if Mode.AWAY in flags or Mode.OPERATOR in flags:
             return
 
+        nickname = self.nicknames[target_client.nickname]
+
         modified = None
         if op == "+":
-            modified = target_client.mode.set_user_flags(flags)
+            modified = nickname.mode.set_user_flags(flags)
         elif op == "-":
-            modified = target_client.mode.clear_flags(flags)
+            modified = nickname.mode.clear_flags(flags)
 
         if modified:
             client.send(IRCMessage.mode(client.identity, target, op + modified))

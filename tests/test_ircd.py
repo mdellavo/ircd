@@ -144,10 +144,23 @@ class TestIRC(TestCase):
         client_a = self.get_client()
         self.ident(client_a, "foo")
 
+        nickname = self.irc.nicknames["foo"]
+
         self.process(client_a, [
             "MODE foo :+i"
         ])
         self.assertReplies(client_a, [
             ":foo!foo@localhost MODE foo :+i"
         ])
-        self.assertTrue(client_a.mode.user_is_invisible)
+        self.assertTrue(nickname.mode.user_is_invisible)
+
+        self.process(client_a, [
+            "MODE foo :-i"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost MODE foo :-i"
+        ])
+
+
+        self.assertFalse(nickname.mode.user_is_invisible)
+        self.assertEqual(nickname.mode.mode, "")

@@ -42,7 +42,6 @@ class Client(object):
         self.nickname = None
         self.user = None
         self.realname = None
-        self.mode = None
         self.host = socket.getfqdn(address[0]) or address[0]
 
         self.irc = irc
