@@ -2,7 +2,6 @@ import ssl
 import time
 import logging
 import socket
-from threading import Thread
 from Queue import Queue, Empty
 
 log = logging.getLogger(__name__)
@@ -46,11 +45,10 @@ class Client(object):
 
         self.irc = irc
 
+        self.buffer = ""
+
         self.outgoing = Queue()
         self.running = True
-
-        self.reader_thread = None
-        self.writer_thread = None
 
         self.ping_count = 0
 
@@ -58,23 +56,41 @@ class Client(object):
     def identity(self):
         return "{nickname}!{user}@{host}".format(nickname=self.nickname, user=self.user, host=self.host)
 
-    def start(self):
-        self.reader_thread = Thread(target=self.reader_main)
-        self.reader_thread.setDaemon(True)
-        self.reader_thread.start()
-
-        self.writer_thread = Thread(target=self.writer_main)
-        self.writer_thread.setDaemon(True)
-        self.writer_thread.start()
+    @property
+    def is_running(self):
+        return self.running
 
     def stop(self):
         self.running = False
         if self.socket:
             self.disconnect()
 
-    def join(self):
-        for thread in [self.reader_thread, self.writer_thread]:
-            thread.join()
+    def feed(self, data):
+        self.buffer += data
+        while TERMINATOR in self.buffer:
+            line, self.buffer = self.buffer.split(TERMINATOR, 1)
+            log.debug(">>> %s", line)
+            self.irc.submit(self, parsemsg(line))
+
+    def take(self):
+        last_ping = time.time()
+        while self.is_running:
+            try:
+                msg = self.outgoing.get(timeout=PING_INTERVAL)
+            except Empty:
+                msg = None
+
+            if msg:
+                yield msg.format() + TERMINATOR
+
+            diff = time.time() - last_ping
+            if diff > PING_INTERVAL:
+                self.irc.ping(self)
+                last_ping = time.time()
+                self.ping_count += 1
+                if self.ping_count > PING_GRACE:
+                    self.irc.drop_client(self)
+                    break
 
     def set_nickname(self, nickname):
         self.nickname = nickname
@@ -100,55 +116,6 @@ class Client(object):
     @property
     def has_identity(self):
         return self.has_nickname and all([self.user, self.realname])
-
-    def reader_main(self):
-        buffer = ""
-
-        while self.socket is not None and self.running:
-            try:
-                data = self.socket.recv(1024)
-            except socket.error as e:
-                if self.running:
-                    log.error("error reading from client: %s", e)
-                data = None
-
-            if not data:
-                if self.running:
-                    self.irc.drop_client(self)
-                break
-
-            buffer += data
-            while TERMINATOR in buffer:
-                line, buffer = buffer.split(TERMINATOR, 1)
-                log.debug(">>> %s", line)
-                self.irc.submit(self, parsemsg(line))
-
-    def writer_main(self):
-        last_ping = time.time()
-        while self.running:
-            try:
-                msg = self.outgoing.get(timeout=PING_INTERVAL)
-            except Empty:
-                msg = None
-
-            if msg:
-                log.debug("<<< %s", msg.format())
-                try:
-                    self.socket.write(msg.format() + TERMINATOR)
-                except socket.error as e:
-                    if self.running:
-                        log.error("error writing to client: %s", e)
-                        self.irc.drop_client(self)
-                    break
-
-            diff = time.time() - last_ping
-            if diff > PING_INTERVAL:
-                self.irc.ping(self)
-                last_ping = time.time()
-                self.ping_count += 1
-                if self.ping_count > PING_GRACE:
-                    self.irc.drop_client(self)
-                    break
 
 
 class Server(object):
@@ -180,9 +147,7 @@ class Server(object):
         return sock
 
     def on_connect(self, client_sock, address):
-        log.info("new client connection %s", address)
-        client = Client(self.irc, self.setup_client_socket(client_sock), address)
-        client.start()
+        raise NotImplemented("Server must implement on_connect")
 
     def serve(self):
         self.server_sock = self.create_socket()

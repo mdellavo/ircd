@@ -346,6 +346,10 @@ class IRC(object):
         if nickname not in self.nicknames:
             self.nicknames[nickname] = Nickname(nickname)
 
+    def remove_client(self, nickname):
+        if nickname in self.clients:
+            del self.clients[nickname]
+
     def has_client(self, nickname):
         return nickname in self.clients
 
@@ -377,7 +381,7 @@ class IRC(object):
             client.send(msg)
 
             if old:
-                del self.clients[old]
+                self.remove_client(old)
 
                 # FIXME hold channel memberships in Nickname
                 for channel in self.channels.values():
@@ -398,8 +402,8 @@ class IRC(object):
 
     def drop_client(self, client):
         log.info("%s disconnected", client.identity)
-        if client.nickname and self.has_client(client.nickname):
-            del self.clients[client.nickname]
+        if client.nickname:
+            self.remove_client(client.nickname)
         client.stop()
 
     def join_channel(self, name, client, key=None):
@@ -468,7 +472,6 @@ class IRC(object):
             channel.clear_mode(flags)
 
     def set_user_mode(self, client, target, flags):
-        target_client = self.get_client(target)
         op, flags = flags[0], flags[1:]
 
         to_self = client.nickname == target
