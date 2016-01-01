@@ -76,7 +76,9 @@ def irc_worker(irc):
 
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG,
+                        datefmt="%Y-%m-%d %H:%M:%S",
+                        format="[%(asctime)s] %(name)s/%(levelname)s %(message)s")
 
     host = socket.getfqdn(ADDRESS[0])
     irc = IRC(host)

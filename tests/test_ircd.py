@@ -166,7 +166,7 @@ class TestIRC(TestCase):
         self.assertReplies(client_a, [
             ":foo!foo@localhost MODE foo :+i"
         ])
-        self.assertTrue(nickname.mode.user_is_invisible)
+        self.assertTrue(nickname.is_invisible)
 
         self.process(client_a, [
             "MODE foo :-i"
@@ -175,5 +175,5 @@ class TestIRC(TestCase):
             ":foo!foo@localhost MODE foo :-i"
         ])
 
-        self.assertFalse(nickname.mode.user_is_invisible)
+        self.assertFalse(nickname.is_invisible)
         self.assertEqual(nickname.mode.mode, "")

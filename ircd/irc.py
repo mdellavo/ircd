@@ -39,6 +39,106 @@ class Prefix(object):
         return self.prefix
 
 
+class ModeFlag(object):
+    KEY = None
+
+    def __init__(self):
+        self.value = False
+
+    def set(self, param=None):
+        self.value = True
+
+    def clear(self):
+        self.value = False
+
+    def is_set(self):
+        return self.value
+
+
+class UserModeFlag(ModeFlag):
+    def __init__(self, nickname):
+        super(UserModeFlag, self).__init__()
+        self.nickname = nickname
+
+
+class ChannelModeFlag(ModeFlag):
+    def __init__(self, channel):
+        super(ChannelModeFlag, self).__init__()
+        self.channel = channel
+
+
+class UserAwayFlagFlag(UserModeFlag):
+    KEY = "a"
+
+
+class UserInvisibleFlagFlag(UserModeFlag):
+    KEY = "i"
+
+
+class UserWallopsFlagFlag(UserModeFlag):
+    KEY = "w"
+
+
+class UserRestrictedFlagFlag(UserModeFlag):
+    KEY = "r"
+
+
+class UserLocalOperatorFlagFlag(UserModeFlag):
+    KEY = "O"
+
+
+class UserOperatorFlagFlag(UserModeFlag):
+    KEY = "o"
+
+
+class UserServerNoticesFlagFlag(UserModeFlag):
+    KEY = "s"
+
+
+class ChannelPrivateFlagFlag(ChannelModeFlag):
+    KEY = "p"
+
+
+class ChannelInviteOnlyFlagFlag(ChannelModeFlag):
+    KEY = "i"
+
+
+class ChannelTopicClosedFlagFlag(ChannelModeFlag):
+    KEY = "t"
+
+
+class ChannelNoMessagesFlagFlag(ChannelModeFlag):
+    KEY = "n"
+
+
+class ChannelModeratedFlagFlag(ChannelModeFlag):
+    KEY = "m"
+
+
+class ChannelUserLimitFlagFlag(ChannelModeFlag):
+    KEY = "l"
+
+
+class ChannelBanMaskFlagFlag(ChannelModeFlag):
+    KEY = "b"
+
+
+class ChannelVoiceFlagFlag(ChannelModeFlag):
+    KEY = "v"
+
+
+class ChannelKeyFlagFlag(ChannelModeFlag):
+    KEY = "k"
+
+
+class ChannelSecretFlagFlag(ChannelModeFlag):
+    KEY = "s"
+
+
+class ChannelOperatorFlagFlag(ChannelModeFlag):
+    KEY = "o"
+
+
 class Mode(object):
 
     AWAY = "a"
@@ -49,38 +149,49 @@ class Mode(object):
     LOCAL_OPERATOR = "O"
     SERVER_NOTICES = "s"
 
-    ALL_USER_MODES = (AWAY, INVISIBLE, WALLOPS, RESTRICTED, OPERATOR, LOCAL_OPERATOR, SERVER_NOTICES)
+    ALL_USER_MODES = (UserAwayFlagFlag, UserInvisibleFlagFlag, UserWallopsFlagFlag, UserRestrictedFlagFlag, UserLocalOperatorFlagFlag,
+                      UserServerNoticesFlagFlag, UserOperatorFlagFlag)
+    ALL_CHANNEL_MODES = (ChannelPrivateFlagFlag, ChannelSecretFlagFlag, ChannelInviteOnlyFlagFlag, ChannelTopicClosedFlagFlag,
+                         ChannelNoMessagesFlagFlag, ChannelModeratedFlagFlag, ChannelUserLimitFlagFlag, ChannelBanMaskFlagFlag,
+                         ChannelVoiceFlagFlag, ChannelKeyFlagFlag, ChannelOperatorFlagFlag)
 
-    def __init__(self):
-        self.mode = ""
+    def __init__(self, flags):
+        self.flags = {flag.KEY: flag for flag in flags}
+
+    @classmethod
+    def for_nickname(cls, nickname):
+        flags = [flag_class(nickname) for flag_class in cls.ALL_USER_MODES]
+        return cls(flags)
+
+    @classmethod
+    def for_channel(cls, channel):
+        flags = [flag_class(channel) for flag_class in cls.ALL_CHANNEL_MODES]
+        return cls(flags)
 
     def __str__(self):
         return sorted(self.mode)
 
+    @property
+    def mode(self):
+        return "".join(key for key, flag in self.flags.items() if flag.is_set())
+
     def has_flag(self, flag):
-        return flag in self.mode
+        if flag not in self.flags:
+            return False
+        return self.flags[flag].is_set()
 
-    def clear_flags(self, flags):
-        cleared_flags = [flag for flag in flags if flag in self.mode]
-        self.mode = "".join([mode for mode in self.mode if mode not in cleared_flags])
-        return "".join(cleared_flags)
+    def clear_flag(self, flag):
+        is_set = self.has_flag(flag)
+        if is_set:
+            self.flags[flag].clear()
+        return is_set
 
-    def set_user_flags(self, flags):
-        invalid_flags = [flag for flag in flags if flag not in self.ALL_USER_MODES]
-        if invalid_flags:
-            raise ValueError("Invalid mode: " + "".join(invalid_flags))
-        applied_flags = [flag for flag in flags if flag not in self.mode]
-        if applied_flags:
-            self.mode = sorted(self.mode + "".join(applied_flags))
-        return "".join(applied_flags)
-
-    user_is_away = property(lambda self: self.has_flag(self.AWAY))
-    user_is_invisible = property(lambda self: self.has_flag(self.INVISIBLE))
-    user_has_wallops = property(lambda self: self.has_flag(self.WALLOPS))
-    user_is_restricted = property(lambda self: self.has_flag(self.RESTRICTED))
-    user_is_operator = property(lambda self: self.has_flag(self.OPERATOR))
-    user_is_local_operator = property(lambda self: self.has_flag(self.OPERATOR))
-    user_has_server_notices = property(lambda self: self.has_flag(self.SERVER_NOTICES))
+    def set_flag(self, flag, param=None):
+        flag_set = False
+        if flag in self.flags:
+            self.flags[flag].set(param=param)
+            flag_set = True
+        return flag_set
 
 
 class IRCMessage(object):
@@ -90,8 +201,7 @@ class IRCMessage(object):
         self.args = args
 
     def __str__(self):
-        return "{}<command={}, args={}, prefix={}>".format(self.__class__.__name__, self.command, self.args,
-                                                            self.prefix)
+        return "{}<command={}, args={}, prefix={}>".format(self.__class__.__name__, self.command, self.args, self.prefix)
 
     def format(self):
         parts = []
@@ -209,7 +319,15 @@ def validate(nickname=False, identity=False):
 class Nickname(object):
     def __init__(self, nickname):
         self.nickname = nickname
-        self.mode = Mode()
+        self.mode = Mode.for_nickname(self)
+
+    is_away = property(lambda self: self.mode.has_flag(Mode.AWAY))
+    is_invisible = property(lambda self: self.mode.has_flag(Mode.INVISIBLE))
+    has_wallops = property(lambda self: self.mode.has_flag(Mode.WALLOPS))
+    is_restricted = property(lambda self: self.mode.has_flag(Mode.RESTRICTED))
+    is_operator = property(lambda self: self.mode.has_flag(Mode.OPERATOR))
+    is_local_operator = property(lambda self: self.mode.has_flag(Mode.OPERATOR))
+    has_server_notices = property(lambda self: self.mode.has_flag(Mode.SERVER_NOTICES))
 
 
 # FIXME need a NickChannel that is an abstraction over client
@@ -221,7 +339,7 @@ class Channel(object):
         self.topic = None
         self.members = [owner]
         self.operators = [owner]
-        self.mode = Mode()
+        self.mode = Mode.for_channel(self)
 
     def join(self, nick, key=None):
         if self.key and key != self.key:
@@ -244,10 +362,10 @@ class Channel(object):
         return is_member
 
     def set_mode(self, flags):
-        pass
+        self.mode.set_channel_flags(flags)
 
     def clear_mode(self, flags):
-        pass
+        self.mode.clear_flags(flags)
 
 
 class Handler(object):
@@ -472,24 +590,24 @@ class IRC(object):
         elif op == "-":
             channel.clear_mode(flags)
 
-    def set_user_mode(self, client, target, flags):
-        op, flags = flags[0], flags[1:]
+    def set_user_mode(self, client, target, flag):
+        op, flag = flag[0], flag[1:]
 
         to_self = client.nickname == target
 
         if not to_self:
             raise IRCError(IRCMessage.error_users_dont_match(client.identity))
 
-        if Mode.AWAY in flags or Mode.OPERATOR in flags:
-            return
-
         nickname = self.get_nickname(client)
+
+        if Mode.AWAY in flag or Mode.OPERATOR in flag:
+            return
 
         modified = None
         if op == "+":
-            modified = nickname.mode.set_user_flags(flags)
+            modified = nickname.mode.set_flag(flag)
         elif op == "-":
-            modified = nickname.mode.clear_flags(flags)
+            modified = nickname.mode.clear_flag(flag)
 
         if modified:
-            client.send(IRCMessage.mode(client.identity, target, op + modified))
+            client.send(IRCMessage.mode(client.identity, target, op + flag))
