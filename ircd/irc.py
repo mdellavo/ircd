@@ -186,12 +186,26 @@ class Mode(object):
             self.flags[flag].clear()
         return is_set
 
+    def clear_flags(self, flags):
+        cleared_flags = []
+        for flag in flags:
+            if self.clear_flag(flag):
+                cleared_flags.append(flag)
+        return "".join(cleared_flags)
+
     def set_flag(self, flag, param=None):
         flag_set = False
         if flag in self.flags:
             self.flags[flag].set(param=param)
             flag_set = True
         return flag_set
+
+    def set_flags(self, flags, param=None):
+        set_flags = []
+        for flag in flags:
+            if self.set_flag(flag, param=param):
+                set_flags.append(flag)
+        return "".join(set_flags)
 
 
 class IRCMessage(object):
@@ -321,6 +335,12 @@ class Nickname(object):
         self.nickname = nickname
         self.mode = Mode.for_nickname(self)
 
+    def set_mode(self, flags, param=None):
+        return self.mode.set_flags(flags, param=param)
+
+    def clear_mode(self, flags):
+        return self.mode.clear_flags(flags)
+
     is_away = property(lambda self: self.mode.has_flag(Mode.AWAY))
     is_invisible = property(lambda self: self.mode.has_flag(Mode.INVISIBLE))
     has_wallops = property(lambda self: self.mode.has_flag(Mode.WALLOPS))
@@ -362,10 +382,10 @@ class Channel(object):
         return is_member
 
     def set_mode(self, flags):
-        self.mode.set_channel_flags(flags)
+        return self.mode.set_flags(flags)
 
     def clear_mode(self, flags):
-        self.mode.clear_flags(flags)
+        return self.mode.clear_flags(flags)
 
 
 class Handler(object):
@@ -585,13 +605,17 @@ class IRC(object):
         channel = self.get_channel(target)
         op, flags = flags[0], flags[1:]
 
+        modified = None
         if op == "+":
-            channel.set_mode(flags)
+            modified = channel.set_mode(flags)
         elif op == "-":
-            channel.clear_mode(flags)
+            modified = channel.clear_mode(flags)
 
-    def set_user_mode(self, client, target, flag):
-        op, flag = flag[0], flag[1:]
+        if modified:
+            self.send_to_channel(client, channel.name, IRCMessage.mode(client.identity, target, op + flags))
+
+    def set_user_mode(self, client, target, flags):
+        op, flags = flags[0], flags[1:]
 
         to_self = client.nickname == target
 
@@ -600,14 +624,14 @@ class IRC(object):
 
         nickname = self.get_nickname(client)
 
-        if Mode.AWAY in flag or Mode.OPERATOR in flag:
+        if Mode.AWAY in flags or Mode.OPERATOR in flags:
             return
 
         modified = None
         if op == "+":
-            modified = nickname.mode.set_flag(flag)
+            modified = nickname.set_mode(flags)
         elif op == "-":
-            modified = nickname.mode.clear_flag(flag)
+            modified = nickname.clear_mode(flags)
 
         if modified:
-            client.send(IRCMessage.mode(client.identity, target, op + flag))
+            client.send(IRCMessage.mode(client.identity, target, op + flags))

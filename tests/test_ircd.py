@@ -45,24 +45,21 @@ class TestIRC(TestCase):
         self.assertTrue(client.has_nickname)
         self.assertTrue(client.has_identity)
 
-    def join(self, client, chan, others=None):
-
-        members = sorted([client.nickname] + (others or []))
-
+    def join(self, client, channel_name):
         self.process(client, [
-            "JOIN {}".format(chan)
+            "JOIN {}".format(channel_name)
         ])
 
-        self.assertReplies(client, [
-            ":{} JOIN :{}".format(client.identity, chan),
-            ":localhost 331 {} :{}".format(client.nickname, chan),
-            ":localhost 353 {} = {} :{}".format(client.nickname, chan, " ".join(members)),
-            ":localhost 355 {} {} :End of /NAMES list.".format(client.nickname, chan),
-        ])
-
-        channel = self.irc.get_channel(chan)
+        channel = self.irc.get_channel(channel_name)
         self.assertTrue(channel)
         self.assertIn(client.nickname, channel.members)
+
+        self.assertReplies(client, [
+            ":{} JOIN :{}".format(client.identity, channel_name),
+            ":localhost 331 {} :{}".format(client.nickname, channel_name),
+            ":localhost 353 {} = {} :{}".format(client.nickname, channel_name, " ".join(sorted(channel.members))),
+            ":localhost 355 {} {} :End of /NAMES list.".format(client.nickname, channel_name),
+        ])
 
     def part(self, client, chan):
         self.process(client, [
@@ -115,7 +112,7 @@ class TestIRC(TestCase):
 
         client_b = self.get_client()
         self.ident(client_b, "bar")
-        self.join(client_b, "#", others=[client_a.nickname])
+        self.join(client_b, "#")
 
         channel = self.irc.channels["#"]
         self.assertEqual(channel.members, ["foo", "bar"])
@@ -177,3 +174,37 @@ class TestIRC(TestCase):
 
         self.assertFalse(nickname.is_invisible)
         self.assertEqual(nickname.mode.mode, "")
+
+    def test_channel_mode(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+        self.join(client_a, "#")
+
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+        self.join(client_b, "#")
+
+        self.assertReplies(client_a, [
+            ":bar!bar@localhost JOIN :#"
+        ])
+
+        channel = self.irc.channels["#"]
+
+        self.process(client_a, [
+            "MODE # :+n"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost MODE # :+n"
+        ])
+        self.assertReplies(client_b, [
+            ":foo!foo@localhost MODE # :+n"
+        ])
+        self.assertEqual(channel.mode.mode, "n")
+        self.process(client_a, [
+            "MODE # :-n"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost MODE # :-n"
+        ])
+
+        self.assertEqual(channel.mode.mode, "")
