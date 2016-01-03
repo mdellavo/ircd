@@ -41,7 +41,7 @@ class Nickname(object):
         return "Nickname({})".format(self.nickname)
 
     def __eq__(self, other):
-        return self.nickname == other.nickname
+        return other and self.nickname == other.nickname
 
     def set_nick(self, nickname):
         self.nickname = nickname
@@ -84,7 +84,7 @@ class Channel(object):
         self.mode = Mode.for_channel(self)
 
     def __eq__(self, other):
-        return self.name == other.name
+        return other and self.name == other.name
 
     def __repr__(self):
         return "Channel({}, {})".format(self.name, self.owner)
@@ -211,8 +211,8 @@ class IRC(object):
     def has_nickname(self, nickname):
         return nickname in self.nicknames
 
-    def get_nickname(self, client):
-        return self.nicknames.get(client.nickname)
+    def get_nickname(self, nickname):
+        return self.nicknames.get(nickname)
 
     def process(self, client, msg):
         msg = IRCMessage(msg[0], msg[1], *msg[2])
@@ -276,7 +276,7 @@ class IRC(object):
             client.disconnect()
 
     def join_channel(self, name, client, key=None):
-        nickname = self.get_nickname(client)
+        nickname = self.get_nickname(client.nickname)
         channel = self.get_channel(name)
         if not channel:
             if name[0] not in CHAN_START_CHARS:
@@ -303,7 +303,7 @@ class IRC(object):
         channel = self.get_channel(name)
         if not channel:
             return
-        nickname = self.get_nickname(client)
+        nickname = self.get_nickname(client.nickname)
         self.send_to_channel(client, name, IRCMessage.part(client.identity, name))
         channel.part(nickname)
 
@@ -312,7 +312,7 @@ class IRC(object):
         if not channel:
             raise IRCError(IRCMessage.error_no_such_channel(client.identity, channel_name))
 
-        nickname = self.get_nickname(client)
+        nickname = self.get_nickname(client.nickname)
         if nickname not in channel.members:
             raise IRCError(IRCMessage.error_not_in_channel(client.identity))
 
@@ -356,7 +356,7 @@ class IRC(object):
         if not to_self:
             raise IRCError(IRCMessage.error_users_dont_match(client.identity))
 
-        nickname = self.get_nickname(client)
+        nickname = self.get_nickname(client.nickname)
 
         if Mode.AWAY in flags or Mode.OPERATOR in flags:
             return

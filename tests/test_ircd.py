@@ -52,7 +52,7 @@ class TestIRC(TestCase):
 
         channel = self.irc.get_channel(channel_name)
         self.assertTrue(channel)
-        nickname = self.irc.get_nickname(client)
+        nickname = self.irc.get_nickname(client.nickname)
         self.assertIn(nickname, channel.members)
 
         members = sorted([member.nickname for member in channel.members])
@@ -74,7 +74,7 @@ class TestIRC(TestCase):
 
         channel = self.irc.get_channel(chan)
         self.assertTrue(channel)
-        nickname = self.irc.get_nickname(client)
+        nickname = self.irc.get_nickname(client.nickname)
         self.assertNotIn(nickname, channel.members)
 
     def test_ident(self):
@@ -84,6 +84,25 @@ class TestIRC(TestCase):
         client = self.irc.clients["foo"]
         self.assertTrue(client.has_identity)
         self.assertTrue(client.has_nickname)
+
+    def test_nick(self):
+        self.ident(self.get_client(), "foo")
+        client = self.irc.clients["foo"]
+
+        self.assertEqual(client.nickname, "foo")
+        self.assertIn("foo", self.irc.nicknames)
+
+        self.process(client, [
+            "NICK :bar"
+        ])
+
+        self.assertReplies(client, [
+            ":foo!foo@localhost NICK :bar"
+        ])
+
+        self.assertNotIn("foo", self.irc.nicknames)
+        self.assertEqual(client.nickname, "bar")
+        self.assertIn("bar", self.irc.nicknames)
 
     def test_join_part(self):
         client = self.get_client()
@@ -96,7 +115,7 @@ class TestIRC(TestCase):
         self.assertEqual([member.nickname for member in channel.members], ["foo"])
         self.assertEqual(channel.owner.nickname, "foo")
 
-        nickname = self.irc.get_nickname(client)
+        nickname = self.irc.get_nickname(client.nickname)
         self.assertEqual([chan.name for chan in nickname.channels], ["#"])
 
         self.part(client, "#")
