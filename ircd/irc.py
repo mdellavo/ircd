@@ -1,8 +1,10 @@
-import string
 import logging
 from Queue import Queue
 from functools import wraps
 from datetime import datetime
+
+from .message import IRCMessage
+from .mode import Mode
 
 SERVER_NAME = "ircd"
 SERVER_VERSION = "0.1"
@@ -14,308 +16,6 @@ log = logging.getLogger(__name__)
 class IRCError(Exception):
     def __init__(self, msg):
         self.msg = msg
-
-
-class Prefix(object):
-    def __init__(self, prefix):
-        self.prefix = prefix
-
-        self.name = None
-
-        self.nickname = None
-        self.user = None
-        self.host = None
-
-        if "@" in prefix:
-            if "!" in prefix:
-                self.nickname, rest = prefix.split("!", 1)
-                self.user, self.host = rest.split("@", 1)
-            else:
-                self.nickname, self.host = prefix.split("@", 1)
-        else:
-            self.name = prefix
-
-    def __str__(self):
-        return self.prefix
-
-
-class ModeFlag(object):
-    KEY = None
-
-    def __init__(self):
-        self.value = False
-
-    def set(self, param=None):
-        self.value = True
-
-    def clear(self):
-        self.value = False
-
-    def is_set(self):
-        return self.value
-
-
-class UserModeFlag(ModeFlag):
-    def __init__(self, nickname):
-        super(UserModeFlag, self).__init__()
-        self.nickname = nickname
-
-
-class ChannelModeFlag(ModeFlag):
-    def __init__(self, channel):
-        super(ChannelModeFlag, self).__init__()
-        self.channel = channel
-
-
-class UserAwayFlagFlag(UserModeFlag):
-    KEY = "a"
-
-
-class UserInvisibleFlagFlag(UserModeFlag):
-    KEY = "i"
-
-
-class UserWallopsFlagFlag(UserModeFlag):
-    KEY = "w"
-
-
-class UserRestrictedFlagFlag(UserModeFlag):
-    KEY = "r"
-
-
-class UserLocalOperatorFlagFlag(UserModeFlag):
-    KEY = "O"
-
-
-class UserOperatorFlagFlag(UserModeFlag):
-    KEY = "o"
-
-
-class UserServerNoticesFlagFlag(UserModeFlag):
-    KEY = "s"
-
-
-class ChannelPrivateFlagFlag(ChannelModeFlag):
-    KEY = "p"
-
-
-class ChannelInviteOnlyFlagFlag(ChannelModeFlag):
-    KEY = "i"
-
-
-class ChannelTopicClosedFlagFlag(ChannelModeFlag):
-    KEY = "t"
-
-
-class ChannelNoMessagesFlagFlag(ChannelModeFlag):
-    KEY = "n"
-
-
-class ChannelModeratedFlagFlag(ChannelModeFlag):
-    KEY = "m"
-
-
-class ChannelUserLimitFlagFlag(ChannelModeFlag):
-    KEY = "l"
-
-
-class ChannelBanMaskFlagFlag(ChannelModeFlag):
-    KEY = "b"
-
-
-class ChannelVoiceFlagFlag(ChannelModeFlag):
-    KEY = "v"
-
-
-class ChannelKeyFlagFlag(ChannelModeFlag):
-    KEY = "k"
-
-
-class ChannelSecretFlagFlag(ChannelModeFlag):
-    KEY = "s"
-
-
-class ChannelOperatorFlagFlag(ChannelModeFlag):
-    KEY = "o"
-
-
-class Mode(object):
-
-    AWAY = "a"
-    INVISIBLE = "i"
-    WALLOPS = "w"
-    RESTRICTED = "r"
-    OPERATOR = "o"
-    LOCAL_OPERATOR = "O"
-    SERVER_NOTICES = "s"
-
-    ALL_USER_MODES = (UserAwayFlagFlag, UserInvisibleFlagFlag, UserWallopsFlagFlag, UserRestrictedFlagFlag, UserLocalOperatorFlagFlag,
-                      UserServerNoticesFlagFlag, UserOperatorFlagFlag)
-    ALL_CHANNEL_MODES = (ChannelPrivateFlagFlag, ChannelSecretFlagFlag, ChannelInviteOnlyFlagFlag, ChannelTopicClosedFlagFlag,
-                         ChannelNoMessagesFlagFlag, ChannelModeratedFlagFlag, ChannelUserLimitFlagFlag, ChannelBanMaskFlagFlag,
-                         ChannelVoiceFlagFlag, ChannelKeyFlagFlag, ChannelOperatorFlagFlag)
-
-    def __init__(self, flags):
-        self.flags = {flag.KEY: flag for flag in flags}
-
-    @classmethod
-    def for_nickname(cls, nickname):
-        flags = [flag_class(nickname) for flag_class in cls.ALL_USER_MODES]
-        return cls(flags)
-
-    @classmethod
-    def for_channel(cls, channel):
-        flags = [flag_class(channel) for flag_class in cls.ALL_CHANNEL_MODES]
-        return cls(flags)
-
-    def __str__(self):
-        return sorted(self.mode)
-
-    @property
-    def mode(self):
-        return "".join(key for key, flag in self.flags.items() if flag.is_set())
-
-    def has_flag(self, flag):
-        if flag not in self.flags:
-            return False
-        return self.flags[flag].is_set()
-
-    def clear_flag(self, flag):
-        is_set = self.has_flag(flag)
-        if is_set:
-            self.flags[flag].clear()
-        return is_set
-
-    def clear_flags(self, flags):
-        cleared_flags = []
-        for flag in flags:
-            if self.clear_flag(flag):
-                cleared_flags.append(flag)
-        return "".join(cleared_flags)
-
-    def set_flag(self, flag, param=None):
-        flag_set = False
-        if flag in self.flags:
-            self.flags[flag].set(param=param)
-            flag_set = True
-        return flag_set
-
-    def set_flags(self, flags, param=None):
-        set_flags = []
-        for flag in flags:
-            if self.set_flag(flag, param=param):
-                set_flags.append(flag)
-        return "".join(set_flags)
-
-
-class IRCMessage(object):
-    def __init__(self, prefix, command, *args):
-        self.prefix = Prefix(prefix) if prefix else None
-        self.command = command
-        self.args = args
-
-    def __str__(self):
-        return "{}<command={}, args={}, prefix={}>".format(self.__class__.__name__, self.command, self.args, self.prefix)
-
-    def format(self):
-        parts = []
-        if self.prefix:
-            parts.append(":" + str(self.prefix))
-        parts.append(self.command)
-        if self.args:
-            head = self.args[:-1]
-            if head:
-                parts.extend(head)
-            tail = self.args[-1]
-            if tail:
-                parts.append(":" + tail)
-        rv = " ".join(parts)
-        return rv
-
-    @classmethod
-    def reply_welcome(cls, prefix, target, nickname, user, hostname):
-        return cls(prefix, "001", target,
-                   "Welcome to the Internet Relay Network {}!{}@{}".format(nickname, user, hostname))
-
-    @classmethod
-    def reply_yourhost(cls, prefix, target, name, version):
-        return cls(prefix, "002", target, "Your host is {}, running version {}".format(name, version))
-
-    @classmethod
-    def reply_created(cls, prefix, target, dt):
-        return cls(prefix, "003", target, "This server was created {}".format(dt))
-
-    @classmethod
-    def reply_myinfo(cls, prefix, target, name, verison):
-        return cls(prefix, "004", target, "{} {} {} {}".format(name, verison, string.letters, string.letters))
-
-    @classmethod
-    def reply_pong(cls, prefix, server):
-        return cls(prefix, "PONG", server)
-
-    @classmethod
-    def reply_notopic(cls, prefix, target, channel):
-        return cls(prefix, "331", target, channel.name)
-
-    @classmethod
-    def reply_topic(cls, prefix, target, channel):
-        return cls(prefix, "332", channel.name, channel.topic)
-
-    @classmethod
-    def reply_names(cls, prefix, target, channel):
-        return cls(prefix, "353", target, "=", channel.name, " ".join(sorted(channel.members)))
-
-    @classmethod
-    def reply_endnames(cls, prefix, target, channel):
-        return cls(prefix, "355", target, channel.name, "End of /NAMES list.")
-
-    @classmethod
-    def error_nick_in_use(cls, prefix, nickname):
-        return cls(prefix, "433", nickname)
-
-    @classmethod
-    def error_not_in_channel(cls, prefix):
-        return cls(prefix, "441")
-
-    @classmethod
-    def error_no_such_channel(cls, prefix, name):
-        return cls(prefix, "403", "{channel} No such nick/channel".format(channel=name))
-
-    @classmethod
-    def error_no_such_nickname(cls, prefix, name):
-        return cls(prefix, "401", "{nickname} No such nick/channel".format(nickname=name))
-
-    @classmethod
-    def error_channel_operator_needed(cls, prefix, name):
-        return cls(prefix, "482", "{channel} You're not channel operator".format(channel=name))
-
-    @classmethod
-    def error_users_dont_match(cls, prefix):
-        return cls(prefix, "502", "Cant change mode for other users")
-
-    @classmethod
-    def nick(cls, prefix, nickname):
-        return cls(prefix, "NICK", nickname)
-
-    @classmethod
-    def join(cls, prefix, channel):
-        return cls(prefix, "JOIN", channel)
-
-    @classmethod
-    def part(cls, prefix, channel):
-        return cls(prefix, "PART", channel)
-
-    @classmethod
-    def private_message(cls, prefix, target, msg):
-        return cls(prefix, "PRIVMSG", target, msg)
-
-    @classmethod
-    def ping(cls, server):
-        return cls(None, "PING", server)
-
-    @classmethod
-    def mode(cls, prefix, target, flags):
-        return cls(prefix, "MODE", target, flags)
 
 
 def validate(nickname=False, identity=False):
@@ -334,12 +34,34 @@ class Nickname(object):
     def __init__(self, nickname):
         self.nickname = nickname
         self.mode = Mode.for_nickname(self)
+        self.last_seen = datetime.utcnow()
+        self.channels = []
+
+    def __repr__(self):
+        return "Nickname({})".format(self.nickname)
+
+    def __eq__(self, other):
+        return self.nickname == other.nickname
+
+    def set_nick(self, nickname):
+        self.nickname = nickname
 
     def set_mode(self, flags, param=None):
         return self.mode.set_flags(flags, param=param)
 
     def clear_mode(self, flags):
         return self.mode.clear_flags(flags)
+
+    def seen(self):
+        self.last_seen = datetime.utcnow()
+
+    def joined_channel(self, channel):
+        if channel not in self.channels:
+            self.channels.append(channel)
+
+    def parted_channel(self, channel):
+        if channel in self.channels:
+            self.channels.remove(channel)
 
     is_away = property(lambda self: self.mode.has_flag(Mode.AWAY))
     is_invisible = property(lambda self: self.mode.has_flag(Mode.INVISIBLE))
@@ -361,25 +83,26 @@ class Channel(object):
         self.operators = [owner]
         self.mode = Mode.for_channel(self)
 
-    def join(self, nick, key=None):
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __repr__(self):
+        return "Channel({}, {})".format(self.name, self.owner)
+
+    def join(self, nickname, key=None):
         if self.key and key != self.key:
             return False
 
-        if nick not in self.members:
-            log.info("%s joined %s", nick, self.name)
-            self.members.append(nick)
+        if nickname not in self.members:
+            log.info("%s joined %s", nickname, self.name)
+            self.members.append(nickname)
+        nickname.joined_channel(self)
 
-    def part(self, nick):
-        if nick in self.members:
-            log.info("%s parted %s", nick, self.name)
-            self.members.remove(nick)
-
-    def update_nick(self, old, new):
-        is_member = old in self.members
-        if is_member:
-            self.members.remove(old)
-            self.members.append(new)
-        return is_member
+    def part(self, nickname):
+        if nickname in self.members:
+            log.info("%s parted %s", nickname, self.name)
+            self.members.remove(nickname)
+        nickname.parted_channel(self)
 
     def set_mode(self, flags):
         return self.mode.set_flags(flags)
@@ -470,7 +193,7 @@ class IRC(object):
         return self.channels.get(name)
 
     def set_channel(self, channel):
-        self.channels[channel.name.lower()] = channel
+        self.channels[channel.name] = channel
 
     def has_channel(self, name):
         return name in self.channels
@@ -479,17 +202,14 @@ class IRC(object):
         return self.clients.get(nickname)
 
     def set_client(self, client):
-        nickname = client.nickname.lower()
-        self.clients[nickname] = client
-        if nickname not in self.nicknames:
-            self.nicknames[nickname] = Nickname(nickname)
+        self.clients[client.nickname] = client
 
     def remove_client(self, nickname):
         if nickname in self.clients:
             del self.clients[nickname]
 
-    def has_client(self, nickname):
-        return nickname in self.clients
+    def has_nickname(self, nickname):
+        return nickname in self.nicknames
 
     def get_nickname(self, client):
         return self.nicknames.get(client.nickname)
@@ -502,18 +222,29 @@ class IRC(object):
     def submit(self, client, msg):
         self.incoming.put((client, msg))
 
-    def set_nick(self, client, nickname):
-        if client.nickname == nickname:
+    def set_nick(self, client, new_nickname):
+        if client.nickname == new_nickname:
             return
 
-        if self.has_client(nickname):
-            raise IRCError(IRCMessage.error_nick_in_use(client.identity, nickname))
+        if self.has_nickname(new_nickname):
+            raise IRCError(IRCMessage.error_nick_in_use(client.identity, new_nickname))
 
         old = client.nickname
-        msg = IRCMessage.nick(client.identity, nickname)
 
-        client.set_nickname(nickname)
+        # assemble our message before changing nick
+        msg = IRCMessage.nick(client.identity, new_nickname)
+
+        client.set_nickname(new_nickname)
         self.set_client(client)
+
+        nickname = self.get_nickname(old) if old else None
+        if nickname:
+            del self.nicknames[old]
+            nickname.set_nick(new_nickname)
+        else:
+            nickname = Nickname(new_nickname)
+
+        self.nicknames[nickname.nickname] = nickname
 
         if client.has_identity:
             client.send(msg)
@@ -521,10 +252,9 @@ class IRC(object):
             if old:
                 self.remove_client(old)
 
-                # FIXME hold channel memberships in Nickname
-                for channel in self.channels.values():
-                    if channel.update_nick(old, nickname):
-                        self.send_to_channel(client, channel.name, msg, skip_self=True)
+            for channel_name in nickname.channels:
+                channel = self.get_channel(channel_name)
+                self.send_to_channel(client, channel.name, msg, skip_self=True)
 
     def set_ident(self, client, user, realname):
 
@@ -546,15 +276,16 @@ class IRC(object):
             client.disconnect()
 
     def join_channel(self, name, client, key=None):
+        nickname = self.get_nickname(client)
         channel = self.get_channel(name)
         if not channel:
             if name[0] not in CHAN_START_CHARS:
                 raise IRCError(IRCMessage.error_no_such_channel(client.identity, name))
 
-            channel = Channel(name, client.nickname, key=key)
+            channel = Channel(name, nickname, key=key)
             self.set_channel(channel)
 
-        channel.join(client.nickname, key=key)
+        channel.join(nickname, key=key)
 
         self.send_to_channel(client, name, IRCMessage.join(client.identity, name))
 
@@ -572,20 +303,23 @@ class IRC(object):
         channel = self.get_channel(name)
         if not channel:
             return
+        nickname = self.get_nickname(client)
         self.send_to_channel(client, name, IRCMessage.part(client.identity, name))
-        channel.part(client.nickname)
+        channel.part(nickname)
 
     def send_to_channel(self, client, channel_name, msg, skip_self=False):
         channel = self.get_channel(channel_name)
         if not channel:
             raise IRCError(IRCMessage.error_no_such_channel(client.identity, channel_name))
-        if client.nickname not in channel.members:
+
+        nickname = self.get_nickname(client)
+        if nickname not in channel.members:
             raise IRCError(IRCMessage.error_not_in_channel(client.identity))
 
         for member in channel.members:
-            if skip_self and member == client.nickname:
+            if skip_self and member.nickname == client.nickname:
                 continue
-            member_client = self.clients.get(member)
+            member_client = self.clients.get(member.nickname)
             if member_client:
                 member_client.send(msg)
 

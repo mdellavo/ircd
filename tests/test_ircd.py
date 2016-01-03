@@ -52,12 +52,14 @@ class TestIRC(TestCase):
 
         channel = self.irc.get_channel(channel_name)
         self.assertTrue(channel)
-        self.assertIn(client.nickname, channel.members)
+        nickname = self.irc.get_nickname(client)
+        self.assertIn(nickname, channel.members)
 
+        members = sorted([member.nickname for member in channel.members])
         self.assertReplies(client, [
             ":{} JOIN :{}".format(client.identity, channel_name),
             ":localhost 331 {} :{}".format(client.nickname, channel_name),
-            ":localhost 353 {} = {} :{}".format(client.nickname, channel_name, " ".join(sorted(channel.members))),
+            ":localhost 353 {} = {} :{}".format(client.nickname, channel_name, " ".join(members)),
             ":localhost 355 {} {} :End of /NAMES list.".format(client.nickname, channel_name),
         ])
 
@@ -72,7 +74,8 @@ class TestIRC(TestCase):
 
         channel = self.irc.get_channel(chan)
         self.assertTrue(channel)
-        self.assertNotIn(client.nickname, channel.members)
+        nickname = self.irc.get_nickname(client)
+        self.assertNotIn(nickname, channel.members)
 
     def test_ident(self):
         self.ident(self.get_client(), "foo")
@@ -90,11 +93,15 @@ class TestIRC(TestCase):
         self.assertIn("#", self.irc.channels)
         channel = self.irc.channels["#"]
         self.assertEqual(channel.name, "#")
-        self.assertEqual(channel.members, ["foo"])
-        self.assertEqual(channel.owner, "foo")
+        self.assertEqual([member.nickname for member in channel.members], ["foo"])
+        self.assertEqual(channel.owner.nickname, "foo")
+
+        nickname = self.irc.get_nickname(client)
+        self.assertEqual([chan.name for chan in nickname.channels], ["#"])
 
         self.part(client, "#")
         self.assertEqual(channel.members, [])
+        self.assertEqual([chan.name for chan in nickname.channels], [])
 
     def test_privmsg_channel(self):
         client_a = self.get_client()
@@ -115,7 +122,7 @@ class TestIRC(TestCase):
         self.join(client_b, "#")
 
         channel = self.irc.channels["#"]
-        self.assertEqual(channel.members, ["foo", "bar"])
+        self.assertEqual([member.nickname for member in channel.members], ["foo", "bar"])
 
         self.process(client_a, [
             "PRIVMSG # :hello world"

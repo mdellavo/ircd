@@ -4,32 +4,13 @@ import logging
 import socket
 from Queue import Queue, Empty
 
+from .message import parsemsg, TERMINATOR
+
 log = logging.getLogger(__name__)
 
 BACKLOG = 10
-TERMINATOR = "\r\n"
 PING_INTERVAL = 60
 PING_GRACE = 5
-
-
-# https://stackoverflow.com/questions/930700/python-parsing-irc-messages
-def parsemsg(s):
-    """
-    Breaks a message from an IRC server into its prefix, command, and arguments.
-    """
-    prefix = ''
-    if not s:
-        raise ValueError("Empty line.")
-    if s[0] == ':':
-        prefix, s = s[1:].split(' ', 1)
-    if s.find(' :') != -1:
-        s, trailing = s.split(' :', 1)
-        args = s.split()
-        args.append(trailing)
-    else:
-        args = s.split()
-    command = args.pop(0)
-    return prefix, command, args
 
 
 # FIXME set a timeout and drop if they dont ident in N seconds
