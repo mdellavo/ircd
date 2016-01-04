@@ -125,6 +125,10 @@ class IRCMessage(object):
         return cls(prefix, "401", "{nickname} No such nick/channel".format(nickname=name))
 
     @classmethod
+    def error_needs_more_params(cls, prefix, command):
+        return cls(prefix, "461", command, "Not enough parameters")
+
+    @classmethod
     def error_channel_operator_needed(cls, prefix, name):
         return cls(prefix, "482", "{channel} You're not channel operator".format(channel=name))
 
