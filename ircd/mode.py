@@ -26,75 +26,75 @@ class ChannelModeFlag(ModeFlag):
         self.channel = channel
 
 
-class UserAwayFlagFlag(UserModeFlag):
+class UserAwayFlag(UserModeFlag):
     KEY = "a"
 
 
-class UserInvisibleFlagFlag(UserModeFlag):
+class UserInvisibleFlag(UserModeFlag):
     KEY = "i"
 
 
-class UserWallopsFlagFlag(UserModeFlag):
+class UserWallopsFlag(UserModeFlag):
     KEY = "w"
 
 
-class UserRestrictedFlagFlag(UserModeFlag):
+class UserRestrictedFlag(UserModeFlag):
     KEY = "r"
 
 
-class UserLocalOperatorFlagFlag(UserModeFlag):
+class UserLocalOperatorFlag(UserModeFlag):
     KEY = "O"
 
 
-class UserOperatorFlagFlag(UserModeFlag):
+class UserOperatorFlag(UserModeFlag):
     KEY = "o"
 
 
-class UserServerNoticesFlagFlag(UserModeFlag):
+class UserServerNoticesFlag(UserModeFlag):
     KEY = "s"
 
 
-class ChannelPrivateFlagFlag(ChannelModeFlag):
+class ChannelPrivateFlag(ChannelModeFlag):
     KEY = "p"
 
 
-class ChannelInviteOnlyFlagFlag(ChannelModeFlag):
+class ChannelInviteOnlyFlag(ChannelModeFlag):
     KEY = "i"
 
 
-class ChannelTopicClosedFlagFlag(ChannelModeFlag):
+class ChannelTopicClosedFlag(ChannelModeFlag):
     KEY = "t"
 
 
-class ChannelNoMessagesFlagFlag(ChannelModeFlag):
+class ChannelNoMessagesFlag(ChannelModeFlag):
     KEY = "n"
 
 
-class ChannelModeratedFlagFlag(ChannelModeFlag):
+class ChannelModeratedFlag(ChannelModeFlag):
     KEY = "m"
 
 
-class ChannelUserLimitFlagFlag(ChannelModeFlag):
+class ChannelUserLimitFlag(ChannelModeFlag):
     KEY = "l"
 
 
-class ChannelBanMaskFlagFlag(ChannelModeFlag):
+class ChannelBanMaskFlag(ChannelModeFlag):
     KEY = "b"
 
 
-class ChannelVoiceFlagFlag(ChannelModeFlag):
+class ChannelVoiceFlag(ChannelModeFlag):
     KEY = "v"
 
 
-class ChannelKeyFlagFlag(ChannelModeFlag):
+class ChannelKeyFlag(ChannelModeFlag):
     KEY = "k"
 
 
-class ChannelSecretFlagFlag(ChannelModeFlag):
+class ChannelSecretFlag(ChannelModeFlag):
     KEY = "s"
 
 
-class ChannelOperatorFlagFlag(ChannelModeFlag):
+class ChannelOperatorFlag(ChannelModeFlag):
     KEY = "o"
 
 
@@ -108,12 +108,14 @@ class Mode(object):
     LOCAL_OPERATOR = "O"
     SERVER_NOTICES = "s"
 
-    ALL_USER_MODES = (UserAwayFlagFlag, UserInvisibleFlagFlag, UserWallopsFlagFlag, UserRestrictedFlagFlag,
-                      UserLocalOperatorFlagFlag, UserServerNoticesFlagFlag, UserOperatorFlagFlag)
-    ALL_CHANNEL_MODES = (ChannelPrivateFlagFlag, ChannelSecretFlagFlag, ChannelInviteOnlyFlagFlag,
-                         ChannelTopicClosedFlagFlag, ChannelNoMessagesFlagFlag, ChannelModeratedFlagFlag,
-                         ChannelUserLimitFlagFlag, ChannelBanMaskFlagFlag, ChannelVoiceFlagFlag, ChannelKeyFlagFlag,
-                         ChannelOperatorFlagFlag)
+    CHANNEL_TOPIC_CLOSED = "t"
+
+    ALL_USER_MODES = (UserAwayFlag, UserInvisibleFlag, UserWallopsFlag, UserRestrictedFlag,
+                      UserLocalOperatorFlag, UserServerNoticesFlag, UserOperatorFlag)
+    ALL_CHANNEL_MODES = (ChannelPrivateFlag, ChannelSecretFlag, ChannelInviteOnlyFlag,
+                         ChannelTopicClosedFlag, ChannelNoMessagesFlag, ChannelModeratedFlag,
+                         ChannelUserLimitFlag, ChannelBanMaskFlag, ChannelVoiceFlag, ChannelKeyFlag,
+                         ChannelOperatorFlag)
 
     def __init__(self, flags):
         self.flags = {flag.KEY: flag for flag in flags}

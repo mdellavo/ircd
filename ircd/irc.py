@@ -91,7 +91,17 @@ class Channel(object):
         return other and self.name == other.name
 
     def __repr__(self):
-        return "Channel({}, {})".format(self.name, self.owner)
+        return "Channel({})".format(self.name)
+
+    @property
+    def is_topic_open(self):
+        return not self.mode.has_flag(Mode.CHANNEL_TOPIC_CLOSED)
+
+    def is_operator(self, nickname):
+        return nickname in self.operators
+
+    def set_topic(self, topic):
+        self.topic = topic
 
     def join(self, nickname, key=None):
         if self.key and key != self.key:
@@ -138,12 +148,12 @@ class Handler(object):
     def pong(self, _):
         self.client.clear_ping_count()
 
-    @validate(nickname=True)
+    @validate(nickname=True, num_params=4)
     def user(self, msg):
         user, mode, _, realname = msg.args
         self.irc.set_ident(self.client, user, realname)
 
-    @validate(identity=True)
+    @validate(identity=True, num_params=1)
     def ping(self, msg):
         self.client.send(IRCMessage.reply_pong(self.irc.host, msg.args[0]))
 
@@ -151,17 +161,17 @@ class Handler(object):
         message = msg.args[0] if msg.args else "client quit"
         self.irc.drop_client(self.client, message=message)
 
-    @validate(identity=True)
+    @validate(identity=True, num_params=1)
     def join(self, msg):
         chan_name = msg.args[0]
         self.irc.join_channel(chan_name, self.client)
 
-    @validate(identity=True)
+    @validate(identity=True, num_params=1)
     def part(self, msg):
         chan_name = msg.args[0]
         self.irc.part_channel(chan_name, self.client)
 
-    @validate(identity=True)
+    @validate(identity=True, num_params=2)
     def privmsg(self, msg):
         target = msg.args[0]
 
@@ -172,7 +182,7 @@ class Handler(object):
         else:
             self.client.send(IRCMessage.error_no_such_channel(self.client.identity, target))
 
-    @validate(identity=True)
+    @validate(identity=True, num_params=2)
     def mode(self, msg):
         target = msg.args[0]
         flags = msg.args[1]
@@ -182,6 +192,17 @@ class Handler(object):
         elif target in self.irc.channels:
             self.irc.set_channel_mode(self.client, target, flags)
 
+    @validate(identity=True, num_params=1)
+    def topic(self, msg):
+        channel_name = msg.args[0]
+        channel = self.irc.get_channel(channel_name)
+        if not channel:
+            raise IRCError(IRCMessage.error_no_such_channel(self.client.identity, channel_name))
+
+        if len(msg.args) > 1:
+            self.irc.set_topic(self.client, channel, msg.args[1])
+
+        self.irc.send_topic(self.client, channel)
 
 class IRC(object):
     def __init__(self, host):
@@ -298,15 +319,23 @@ class IRC(object):
 
         self.send_to_channel(client, channel, IRCMessage.join(client.identity, name))
 
-        if channel.topic:
-            client.send(IRCMessage.reply_topic(self.host, client.nickname, channel))
-        else:
-            client.send(IRCMessage.reply_notopic(self.host, client.nickname, channel))
+        self.send_topic(client, channel)
 
         client.send(IRCMessage.reply_names(self.host, client.nickname, channel))
         client.send(IRCMessage.reply_endnames(self.host, client.nickname, channel))
 
         return channel
+
+    def send_topic(self, client, channel):
+        if channel.topic:
+            client.send(IRCMessage.reply_topic(self.host, client.nickname, channel))
+        else:
+            client.send(IRCMessage.reply_notopic(self.host, client.nickname, channel))
+
+    def set_topic(self, client, channel, topic):
+        nickname = self.get_nickname(client.nickname)
+        if channel.is_operator(nickname) or channel.is_topic_open:
+            channel.set_topic(topic)
 
     def part_channel(self, name, client):
         channel = self.get_channel(name)

@@ -234,3 +234,31 @@ class TestIRC(TestCase):
         ])
 
         self.assertEqual(channel.mode.mode, "")
+
+    def test_topic(self):
+        client = self.get_client()
+        self.ident(client, "foo")
+        self.join(client, "#")
+
+        self.process(client, [
+            "TOPIC #"
+        ])
+
+        self.assertReplies(client, [
+            ":localhost 331 foo :#"
+        ])
+        self.process(client, [
+            "TOPIC # :hello world"
+        ])
+        self.assertReplies(client, [
+            ":localhost 332 # :hello world"
+        ])
+        channel = self.irc.get_channel("#")
+        self.assertEqual(channel.topic, "hello world")
+
+        self.process(client, [
+            "TOPIC #"
+        ])
+        self.assertReplies(client, [
+            ":localhost 332 # :hello world"
+        ])
