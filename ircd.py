@@ -22,15 +22,21 @@ log = logging.getLogger("ircd")
 def client_reader(irc, client, sock):
     start = time.time()
     while client.is_connected:
+
+        timeout = False
         try:
             data = sock.recv(4096)
         except socket.error as e:
             timeout = "timed out" in str(e)  # bug in python ssl, doesnt raise timeout
             if not timeout and client.is_connected:
                 log.error("error reading from client: %s", e)
-                irc.drop_client(client)
+                irc.drop_client(client, message=str(e))
                 break
             data = None
+
+        if not timeout and not data:
+            irc.drop_client(client, message="client closed connection")
+            break
 
         if data:
             client.feed(data)
@@ -50,7 +56,7 @@ def client_writer(irc, client, sock):
         except socket.error as e:
             if client.is_connected:
                 log.error("error writing to client: %s", e)
-                irc.drop_client(client)
+                irc.drop_client(client, message=str(e))
                 break
 
 

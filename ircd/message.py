@@ -155,3 +155,7 @@ class IRCMessage(object):
     @classmethod
     def mode(cls, prefix, target, flags):
         return cls(prefix, "MODE", target, flags)
+
+    @classmethod
+    def quit(cls, prefix, message):
+        return cls(prefix, "QUIT", message)

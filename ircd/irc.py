@@ -72,7 +72,6 @@ class Nickname(object):
     has_server_notices = property(lambda self: self.mode.has_flag(Mode.SERVER_NOTICES))
 
 
-# FIXME need a NickChannel that is an abstraction over client
 class Channel(object):
     def __init__(self, name, owner, key=None):
         self.name = name
@@ -268,12 +267,16 @@ class IRC(object):
         client.send(IRCMessage.reply_created(self.host, client.nickname, self.created))
         client.send(IRCMessage.reply_myinfo(self.host, client.nickname, SERVER_NAME, SERVER_VERSION))
 
-    def drop_client(self, client):
+    def drop_client(self, client, message=None):
         if client.nickname:
             self.remove_client(client.nickname)
         if client.is_connected:
             log.info("%s disconnected", client.identity)
             client.disconnect()
+        nickname = self.get_nickname(client.nickname)
+        if nickname:
+            for channel in nickname.channels:
+                self.send_to_channel(client, channel.name, IRCMessage.quit(client.identity, message), skip_self=True)
 
     def join_channel(self, name, client, key=None):
         nickname = self.get_nickname(client.nickname)
