@@ -142,8 +142,9 @@ class Handler(object):
     def ping(self, msg):
         self.client.send(IRCMessage.reply_pong(self.irc.host, msg.args[0]))
 
-    def quit(self, _):
-        self.irc.drop_client(self.client)
+    def quit(self, msg):
+        message = msg.args[0] if msg.args else "client quit"
+        self.irc.drop_client(self.client, message=message)
 
     @validate(identity=True)
     def join(self, msg):

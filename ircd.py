@@ -44,7 +44,7 @@ def client_reader(irc, client, sock):
         elapsed = time.time() - start
         if elapsed > IDENT_TIMEOUT and not client.has_identity:
             log.error("client ident timeout: %s", client.host)
-            irc.drop_client(client)
+            irc.drop_client(client, message="ident timeout")
 
 
 def client_writer(irc, client, sock):

@@ -67,7 +67,7 @@ class Client(object):
                 last_ping = time.time()
                 self.ping_count += 1
                 if self.ping_count > PING_GRACE:
-                    self.irc.drop_client(self)
+                    self.irc.drop_client(self, message="ping timeout")
                     break
 
     def set_nickname(self, nickname):
