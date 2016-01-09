@@ -122,6 +122,37 @@ class TestIRC(TestCase):
         self.assertEqual(channel.members, [])
         self.assertEqual([chan.name for chan in nickname.channels], [])
 
+    def test_join_key(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+        self.join(client_a, "#")
+
+        self.process(client_a, [
+            "MODE # +k :sekret"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost MODE # :+k"
+        ])
+
+        self.assertEqual(self.irc.channels["#"].key, "sekret")
+
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+
+        self.process(client_b, [
+            "JOIN :#"
+        ])
+        self.assertReplies(client_b, [
+            ":bar!bar@localhost 475 :# :Cannot join channel (+k)"
+        ])
+
+        self.process(client_b, [
+            "JOIN # :sekret"
+        ])
+        self.assertReplies(client_b, [
+            ":bar!bar@localhost JOIN :#"
+        ])
+
     def test_privmsg_channel(self):
         client_a = self.get_client()
         self.ident(client_a, "foo")
@@ -263,7 +294,6 @@ class TestIRC(TestCase):
             ":foo!foo@localhost MODE # :-k"
         ])
         self.assertIsNone(self.irc.channels["#"].key)
-
 
     def test_topic(self):
         client = self.get_client()

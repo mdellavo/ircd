@@ -162,7 +162,8 @@ class Handler(object):
     @validate(identity=True, num_params=1)
     def join(self, msg):
         chan_name = msg.args[0]
-        self.irc.join_channel(chan_name, self.client)
+        key = msg.args[1] if len(msg.args) > 1 else None
+        self.irc.join_channel(chan_name, self.client, key=key)
 
     @validate(identity=True, num_params=1)
     def part(self, msg):
