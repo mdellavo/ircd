@@ -20,6 +20,7 @@ def parsemsg(s):
     else:
         args = s.split()
     command = args.pop(0)
+
     return prefix, command, args
 
 

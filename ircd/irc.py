@@ -116,8 +116,8 @@ class Channel(object):
             self.members.remove(nickname)
         nickname.parted_channel(self)
 
-    def set_mode(self, flags):
-        return self.mode.set_flags(flags)
+    def set_mode(self, flags, param=None):
+        return self.mode.set_flags(flags, param=param)
 
     def clear_mode(self, flags):
         return self.mode.clear_flags(flags)
@@ -184,11 +184,12 @@ class Handler(object):
     def mode(self, msg):
         target = msg.args[0]
         flags = msg.args[1]
+        param = msg.args[2] if len(msg.args) > 2 else None
 
         if target in self.irc.clients:
             self.irc.set_user_mode(self.client, target, flags)
         elif target in self.irc.channels:
-            self.irc.set_channel_mode(self.client, target, flags)
+            self.irc.set_channel_mode(self.client, target, flags, param=param)
 
     @validate(identity=True, num_params=1)
     def topic(self, msg):
@@ -373,14 +374,14 @@ class IRC(object):
     def ping(self, client):
         client.send(IRCMessage.ping(self.host))
 
-    def set_channel_mode(self, client, target, flags):
+    def set_channel_mode(self, client, target, flags, param=None):
         channel = self.get_channel(target)
         op, flags = flags[0], flags[1:]
 
         modified = None
         if op == "+":
             try:
-                modified = channel.set_mode(flags)
+                modified = channel.set_mode(flags, param=param)
             except ModeParamMissing:
                 raise IRCError(IRCMessage.error_needs_more_params(client.identity, "MODE"))
         elif op == "-":

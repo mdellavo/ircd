@@ -235,6 +235,36 @@ class TestIRC(TestCase):
 
         self.assertEqual(channel.mode.mode, "")
 
+    def test_set_channel_secret(self):
+        client = self.get_client()
+        self.ident(client, "foo")
+        self.join(client, "#")
+
+        self.process(client, [
+            "MODE # :+k"
+        ])
+        self.assertReplies(client, [
+            ":foo!foo@localhost 461 MODE :Not enough parameters"
+        ])
+
+        self.process(client, [
+            "MODE # +k :sekret"
+        ])
+        self.assertReplies(client, [
+            ":foo!foo@localhost MODE # :+k"
+        ])
+
+        self.assertEqual(self.irc.channels["#"].key, "sekret")
+
+        self.process(client, [
+            "MODE # -k"
+        ])
+        self.assertReplies(client, [
+            ":foo!foo@localhost MODE # :-k"
+        ])
+        self.assertIsNone(self.irc.channels["#"].key)
+
+
     def test_topic(self):
         client = self.get_client()
         self.ident(client, "foo")
