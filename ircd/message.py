@@ -129,6 +129,10 @@ class IRCMessage(object):
         return cls(prefix, "461", command, "Not enough parameters")
 
     @classmethod
+    def error_bad_channel_key(cls, prefix, channel):
+        return cls(prefix, "475", "{channel} :Cannot join channel (+k)".format(channel=channel))
+
+    @classmethod
     def error_channel_operator_needed(cls, prefix, name):
         return cls(prefix, "482", "{channel} You're not channel operator".format(channel=name))
 

@@ -1,3 +1,6 @@
+class ModeParamMissing(ValueError):
+    pass
+
 class ModeFlag(object):
     KEY = None
 
@@ -89,6 +92,17 @@ class ChannelVoiceFlag(ChannelModeFlag):
 class ChannelKeyFlag(ChannelModeFlag):
     KEY = "k"
 
+    def set(self, param=None):
+        if not param:
+            raise ModeParamMissing()
+
+        super(ChannelKeyFlag, self).set(param=param)
+        self.channel.key = param
+
+    def clear(self):
+        super(ChannelKeyFlag, self).clear()
+        self.channel.key = None
+
 
 class ChannelSecretFlag(ChannelModeFlag):
     KEY = "s"
@@ -109,6 +123,8 @@ class Mode(object):
     SERVER_NOTICES = "s"
 
     CHANNEL_TOPIC_CLOSED = "t"
+    CHANNEL_IS_PRIVATE = "p"
+    CHANNEL_IS_SECRET = "s"
 
     ALL_USER_MODES = (UserAwayFlag, UserInvisibleFlag, UserWallopsFlag, UserRestrictedFlag,
                       UserLocalOperatorFlag, UserServerNoticesFlag, UserOperatorFlag)

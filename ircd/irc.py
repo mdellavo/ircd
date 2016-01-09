@@ -4,18 +4,14 @@ from functools import wraps
 from datetime import datetime
 
 from .message import IRCMessage
-from .mode import Mode
+from .mode import Mode, ModeParamMissing
+from .common import IRCError
 
 SERVER_NAME = "ircd"
 SERVER_VERSION = "0.1"
 CHAN_START_CHARS = "&#!+"
 
 log = logging.getLogger(__name__)
-
-
-class IRCError(Exception):
-    def __init__(self, msg):
-        self.msg = msg
 
 
 def validate(nickname=False, identity=False, num_params=None):
@@ -85,6 +81,7 @@ class Channel(object):
         self.topic = None
         self.members = [owner]
         self.operators = [owner]
+        self.invited = []
         self.mode = Mode.for_channel(self)
 
     def __eq__(self, other):
@@ -111,6 +108,7 @@ class Channel(object):
             log.info("%s joined %s", nickname, self.name)
             self.members.append(nickname)
         nickname.joined_channel(self)
+        return True
 
     def part(self, nickname):
         if nickname in self.members:
@@ -203,6 +201,7 @@ class Handler(object):
             self.irc.set_topic(self.client, channel, msg.args[1])
 
         self.irc.send_topic(self.client, channel)
+
 
 class IRC(object):
     def __init__(self, host):
@@ -312,10 +311,13 @@ class IRC(object):
             if name[0] not in CHAN_START_CHARS:
                 raise IRCError(IRCMessage.error_no_such_channel(client.identity, name))
 
-            channel = Channel(name, nickname, key=key)
+            channel = Channel(name, nickname)
             self.set_channel(channel)
 
-        channel.join(nickname, key=key)
+        joined = channel.join(nickname, key=key)
+        if not joined:
+            client.send(IRCMessage.error_bad_channel_key(client.identity, channel.name))
+            return
 
         self.send_to_channel(client, channel, IRCMessage.join(client.identity, name))
 
@@ -323,8 +325,6 @@ class IRC(object):
 
         client.send(IRCMessage.reply_names(self.host, client.nickname, channel))
         client.send(IRCMessage.reply_endnames(self.host, client.nickname, channel))
-
-        return channel
 
     def send_topic(self, client, channel):
         if channel.topic:
@@ -379,7 +379,10 @@ class IRC(object):
 
         modified = None
         if op == "+":
-            modified = channel.set_mode(flags)
+            try:
+                modified = channel.set_mode(flags)
+            except ModeParamMissing:
+                raise IRCError(IRCMessage.error_needs_more_params(client.identity, "MODE"))
         elif op == "-":
             modified = channel.clear_mode(flags)
 
