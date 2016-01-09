@@ -63,13 +63,23 @@ class TestIRC(TestCase):
             ":localhost 355 {} {} :End of /NAMES list.".format(client.nickname, channel_name),
         ])
 
-    def part(self, client, chan):
+    def part(self, client, chan, message=None):
+        if message:
+            cmd = "PART {} :{}".format(chan, message)
+        else:
+            cmd = "PART {}".format(chan)
+
         self.process(client, [
-            "PART {}".format(chan)
+            cmd
         ])
 
+        if message:
+            value = ":{} PART {} :{}".format(client.identity, chan, message)
+        else:
+            value = ":{} PART :{}".format(client.identity, chan)
+
         self.assertReplies(client, [
-            ":{} PART :{}".format(client.identity, chan),
+            value,
         ])
 
         channel = self.irc.get_channel(chan)
@@ -118,7 +128,7 @@ class TestIRC(TestCase):
         nickname = self.irc.get_nickname(client.nickname)
         self.assertEqual([chan.name for chan in nickname.channels], ["#"])
 
-        self.part(client, "#")
+        self.part(client, "#", message="byebye")
         self.assertEqual(channel.members, [])
         self.assertEqual([chan.name for chan in nickname.channels], [])
 

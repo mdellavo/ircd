@@ -168,7 +168,9 @@ class Handler(object):
     @validate(identity=True, num_params=1)
     def part(self, msg):
         chan_name = msg.args[0]
-        self.irc.part_channel(chan_name, self.client)
+        message = msg.args[1] if len(msg.args) > 1 else None
+        print chan_name, message, msg.args
+        self.irc.part_channel(chan_name, self.client, message=message)
 
     @validate(identity=True, num_params=2)
     def privmsg(self, msg):
@@ -339,12 +341,12 @@ class IRC(object):
         if channel.is_operator(nickname) or channel.is_topic_open:
             channel.set_topic(topic)
 
-    def part_channel(self, name, client):
+    def part_channel(self, name, client, message=None):
         channel = self.get_channel(name)
         if not channel:
             return
         nickname = self.get_nickname(client.nickname)
-        self.send_to_channel(client, channel, IRCMessage.part(client.identity, name))
+        self.send_to_channel(client, channel, IRCMessage.part(client.identity, name, message=message))
         channel.part(nickname)
 
     def send_to_channel(self, client, channel, msg, skip_self=False):

@@ -150,8 +150,11 @@ class IRCMessage(object):
         return cls(prefix, "JOIN", channel)
 
     @classmethod
-    def part(cls, prefix, channel):
-        return cls(prefix, "PART", channel)
+    def part(cls, prefix, channel, message=None):
+        args = (channel,)
+        if message:
+            args = args + (message,)
+        return cls(prefix, "PART", *args)
 
     @classmethod
     def private_message(cls, prefix, target, msg):
