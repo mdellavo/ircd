@@ -380,3 +380,51 @@ class TestIRC(TestCase):
         self.assertReplies(client_b, [
             ":bar!bar@localhost JOIN :#"
         ])
+
+    def test_kick(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+
+        self.join(client_a, "#")
+        self.process(client_a, [
+            "MODE # +i"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost MODE # :+i"
+        ])
+
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+
+        channel = self.irc.get_channel("#")
+        nick_b = self.irc.get_nickname("bar")
+
+        self.assertTrue(channel.is_invite_only)
+        self.assertFalse(channel.can_join_channel(nick_b))
+
+        self.process(client_a, [
+            "INVITE bar #"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost 341 # :bar"
+        ])
+
+        self.assertTrue(channel.can_join_channel(nick_b))
+
+        self.assertReplies(client_b, [
+            ":foo!foo@localhost INVITE bar :#"
+        ])
+
+        self.join(client_b, "#")
+
+        self.assertIn(nick_b, channel.members)
+
+        self.process(client_a, [
+            "KICK # bar :get out!"
+        ])
+        self.assertReplies(client_b, [
+            ":foo!foo@localhost KICK # bar :get out!"
+        ])
+        self.assertNotIn(nick_b, channel.members)
+        self.assertFalse(channel.can_join_channel(nick_b))
+

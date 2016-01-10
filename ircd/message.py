@@ -183,3 +183,10 @@ class IRCMessage(object):
     @classmethod
     def invite(cls, prefix, nickname, channel):
         return cls(prefix, "INVITE", nickname.nickname, channel.name)
+
+    @classmethod
+    def kick(cls, prefix, channel, nickname, comment=None):
+        if comment:
+            return cls(prefix, "KICK", channel.name, nickname.nickname, comment)
+        else:
+            return cls(prefix, "KICK", channel.name, nickname.nickname)

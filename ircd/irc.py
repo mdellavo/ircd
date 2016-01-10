@@ -133,9 +133,11 @@ class Channel(object):
         if nickname not in self.invited:
             self.invited.append(nickname)
 
-    def uninvite(self, nickname):
+    def kick(self, nickname):
         if nickname in self.invited:
             self.invited.remove(nickname)
+        if nickname in self.members:
+            self.members.remove(nickname)
 
 
 class Handler(object):
@@ -234,11 +236,23 @@ class Handler(object):
         if not channel.is_operator(self.irc.get_nickname(self.client.nickname)):
             raise IRCError(IRCMessage.error_channel_operator_needed(self.client.prefix, msg.args[1]))
 
-        channel.invite(nickname)
-        self.client.send(IRCMessage.reply_inviting(self.client.identity, channel, nickname))
+        self.irc.invite(self.client, nickname, channel)
 
-        other_client = self.irc.get_client(nickname.nickname)
-        other_client.send(IRCMessage.invite(self.client.identity, nickname, channel))
+    @validate(identity=True, num_params=2)
+    def kick(self, msg):
+        channel = self.irc.get_channel(msg.args[0])
+        if not channel:
+            raise IRCError(IRCMessage.error_no_such_channel(self.client.prefix, msg.args[0]))
+
+        if not channel.is_operator(self.irc.get_nickname(self.client.nickname)):
+            raise IRCError(IRCMessage.error_channel_operator_needed(self.client.prefix, msg.args[0]))
+
+        nickname = self.irc.get_nickname(msg.args[1])
+        if not nickname:
+            raise IRCError(IRCMessage.error_no_such_nickname(self.client.prefix, msg.args[1]))
+
+        comment = msg.args[2] if len(msg.args) > 2 else None
+        self.irc.kick(self.client, channel, nickname, comment=comment)
 
     @validate(identity=True, num_params=1)
     def names(self, msg):
@@ -455,3 +469,15 @@ class IRC(object):
 
         if modified:
             client.send(IRCMessage.mode(client.identity, target, op + flags))
+
+    def invite(self, client, nickname, channel):
+        channel.invite(nickname)
+        client.send(IRCMessage.reply_inviting(client.identity, channel, nickname))
+
+        other_client = self.get_client(nickname.nickname)
+        other_client.send(IRCMessage.invite(client.identity, nickname, channel))
+
+    def kick(self, client, channel, nickname, comment=None):
+        channel.kick(nickname)
+        other_client = self.get_client(nickname.nickname)
+        other_client.send(IRCMessage.kick(client.identity, channel, nickname, comment=comment))
