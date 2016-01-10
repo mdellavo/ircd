@@ -97,6 +97,13 @@ class Channel(object):
     def is_operator(self, nickname):
         return nickname in self.operators
 
+    @property
+    def is_invite_only(self):
+        return self.mode.has_flag(Mode.CHANNEL_IS_INVITE_ONLY)
+
+    def can_join_channel(self, nickname):
+        return nickname in self.invited if self.is_invite_only else True
+
     def set_topic(self, topic):
         self.topic = topic
 
@@ -121,6 +128,14 @@ class Channel(object):
 
     def clear_mode(self, flags):
         return self.mode.clear_flags(flags)
+
+    def invite(self, nickname):
+        if nickname not in self.invited:
+            self.invited.append(nickname)
+
+    def uninvite(self, nickname):
+        if nickname in self.invited:
+            self.invited.remove(nickname)
 
 
 class Handler(object):
@@ -205,6 +220,29 @@ class Handler(object):
             self.irc.set_topic(self.client, channel, msg.args[1])
 
         self.irc.send_topic(self.client, channel)
+
+    @validate(identity=True, num_params=2)
+    def invite(self, msg):
+        nickname = self.irc.get_nickname(msg.args[0])
+        if not nickname:
+            raise IRCError(IRCMessage.error_no_such_nickname(self.client.prefix, msg.args[0]))
+
+        channel = self.irc.get_channel(msg.args[1])
+        if not channel:
+            raise IRCError(IRCMessage.error_no_such_channel(self.client.prefix, msg.args[1]))
+
+        if not channel.is_operator(self.irc.get_nickname(self.client.nickname)):
+            raise IRCError(IRCMessage.error_channel_operator_needed(self.client.prefix, msg.args[1]))
+
+        channel.invite(nickname)
+        self.client.send(IRCMessage.reply_inviting(self.client.identity, channel, nickname))
+
+        other_client = self.irc.get_client(nickname.nickname)
+        other_client.send(IRCMessage.invite(self.client.identity, nickname, channel))
+
+    @validate(identity=True, num_params=1)
+    def names(self, msg):
+        pass
 
 
 class IRC(object):
@@ -317,6 +355,9 @@ class IRC(object):
 
             channel = Channel(name, nickname)
             self.set_channel(channel)
+
+        if not channel.can_join_channel(nickname):
+            raise IRCError(IRCMessage.error_invite_only_channel(client.identity, name))
 
         joined = channel.join(nickname, key=key)
         if not joined:

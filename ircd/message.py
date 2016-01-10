@@ -101,6 +101,10 @@ class IRCMessage(object):
         return cls(prefix, "332", channel.name, channel.topic)
 
     @classmethod
+    def reply_inviting(cls, prefix, channel, nick):
+        return cls(prefix, "341", channel.name, nick.nickname)
+
+    @classmethod
     def reply_names(cls, prefix, target, channel):
         members = sorted([member.nickname for member in channel.members])
         return cls(prefix, "353", target, "=", channel.name, " ".join(sorted(members)))
@@ -128,6 +132,10 @@ class IRCMessage(object):
     @classmethod
     def error_needs_more_params(cls, prefix, command):
         return cls(prefix, "461", command, "Not enough parameters")
+
+    @classmethod
+    def error_invite_only_channel(cls, prefix, channel):
+        return cls(prefix, "473", "{channel} :Cannot join channel (+i)".format(channel=channel))
 
     @classmethod
     def error_bad_channel_key(cls, prefix, channel):
@@ -171,3 +179,7 @@ class IRCMessage(object):
     @classmethod
     def quit(cls, prefix, message):
         return cls(prefix, "QUIT", message)
+
+    @classmethod
+    def invite(cls, prefix, nickname, channel):
+        return cls(prefix, "INVITE", nickname.nickname, channel.name)

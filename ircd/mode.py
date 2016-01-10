@@ -126,6 +126,7 @@ class Mode(object):
     CHANNEL_IS_PRIVATE = "p"
     CHANNEL_IS_SECRET = "s"
     CHANNEL_KEY = "k"
+    CHANNEL_IS_INVITE_ONLY = "i"
 
     ALL_USER_MODES = (UserAwayFlag, UserInvisibleFlag, UserWallopsFlag, UserRestrictedFlag,
                       UserLocalOperatorFlag, UserServerNoticesFlag, UserOperatorFlag)
