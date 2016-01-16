@@ -101,6 +101,14 @@ class Channel(object):
     def is_invite_only(self):
         return self.mode.has_flag(Mode.CHANNEL_IS_INVITE_ONLY)
 
+    @property
+    def is_private(self):
+        return self.mode.has_flag(Mode.CHANNEL_IS_PRIVATE)
+
+    @property
+    def is_secret(self):
+        return self.mode.has_flag(Mode.CHANNEL_IS_SECRET)
+
     def can_join_channel(self, nickname):
         return nickname in self.invited if self.is_invite_only else True
 

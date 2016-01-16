@@ -1,6 +1,7 @@
 class ModeParamMissing(ValueError):
     pass
 
+
 class ModeFlag(object):
     KEY = None
 
