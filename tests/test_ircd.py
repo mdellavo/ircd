@@ -476,3 +476,22 @@ class TestIRC(TestCase):
         self.assertNotIn(nick_b, channel.members)
         self.assertFalse(channel.can_join_channel(nick_b))
 
+    def test_names(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+        self.join(client_a, "#")
+
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+        self.join(client_b, "#")
+
+        self.assertReplies(client_a, [
+            ":bar!bar@localhost JOIN :#",
+        ])
+        self.process(client_a, [
+            "NAMES #"
+        ])
+        self.assertReplies(client_a, [
+            ":localhost 353 foo = # :bar foo",
+            ":localhost 355 foo # :End of /NAMES list."
+        ])
