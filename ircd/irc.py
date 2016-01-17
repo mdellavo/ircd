@@ -284,9 +284,10 @@ class Handler(object):
 
     @validate(identity=True)
     def list(self, msg):
-        channel_names = msg.args[0].split(",")
-        for channel_name in channel_names:
-            channel = self.irc.get_channel(channel_name)
+        channel_names = msg.args[0].split(",") if msg.args else None
+        channels = self.irc.list_channels(self.client, names=channel_names)
+        if channels:
+            self.irc.send_list(self.client, channels)
 
 
 class IRC(object):
@@ -308,6 +309,14 @@ class IRC(object):
 
     def has_channel(self, name):
         return name in self.channels
+
+    def list_channels(self, client, names=None):
+        nickname = self.get_nickname(client.nickname)
+
+        def include_channel(channel):
+            return (not channel.is_secret or channel.is_member(nickname)) and (not names or channel.name in names)
+
+        return [channel for channel in self.channels.values() if include_channel(channel)]
 
     def get_client(self, nickname):
         return self.clients.get(nickname)
@@ -418,6 +427,12 @@ class IRC(object):
         if not (channel.is_private or channel.is_secret) or channel.is_member(nickname):
             client.send(IRCMessage.reply_names(self.host, client.nickname, channel))
             client.send(IRCMessage.reply_endnames(self.host, client.nickname, channel))
+
+    def send_list(self, client, channels):
+        client.send(IRCMessage.reply_list_start(client.identity))
+        for channel in channels:
+            client.send(IRCMessage.reply_list(client.identity, channel))
+        client.send(IRCMessage.reply_list_end(client.identity))
 
     def send_topic(self, client, channel):
         if channel.topic:

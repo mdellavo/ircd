@@ -114,6 +114,18 @@ class IRCMessage(object):
         return cls(prefix, "355", target, channel.name, "End of /NAMES list.")
 
     @classmethod
+    def reply_list_start(cls, prefix):
+        return cls(prefix, "321", "Channel", "Users", "Name")
+
+    @classmethod
+    def reply_list(cls, prefix, channel):
+        return cls(prefix, "322", channel.name, str(len(channel.members)), "(private)" if channel.is_private else channel.topic)
+
+    @classmethod
+    def reply_list_end(cls, prefix):
+        return cls(prefix, "323", "End of /LIST")
+
+    @classmethod
     def error_nick_in_use(cls, prefix, nickname):
         return cls(prefix, "433", nickname)
 

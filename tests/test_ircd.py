@@ -495,3 +495,29 @@ class TestIRC(TestCase):
             ":localhost 353 foo = # :bar foo",
             ":localhost 355 foo # :End of /NAMES list."
         ])
+
+    def test_list(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+
+        for name in ["#foo", "#bar", "#baz"]:
+            self.join(client_a, name)
+            channel = self.irc.channels[name]
+            self.join(client_b, name)
+            self.assertReplies(client_a, [
+                ":bar!bar@localhost JOIN :" + name,
+            ])
+            channel.topic = name * 3
+
+        self.process(client_a, [
+            "LIST"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost 321 Channel Users :Name",
+            ":foo!foo@localhost 322 #foo 2 :#foo#foo#foo",
+            ":foo!foo@localhost 322 #bar 2 :#bar#bar#bar",
+            ":foo!foo@localhost 322 #baz 2 :#baz#baz#baz",
+            ":foo!foo@localhost 323 :End of /LIST",
+        ])
