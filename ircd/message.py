@@ -51,7 +51,7 @@ class IRCMessage(object):
     def __init__(self, prefix, command, *args):
         self.prefix = Prefix(prefix) if prefix else None
         self.command = command
-        self.args = args
+        self.args = [args for args in args if args]
 
     def __str__(self):
         return "{}<command={}, args={}, prefix={}>".format(self.__class__.__name__, self.command, self.args, self.prefix)
@@ -173,8 +173,8 @@ class IRCMessage(object):
         return cls(None, "PING", server)
 
     @classmethod
-    def mode(cls, prefix, target, flags):
-        return cls(prefix, "MODE", target, flags)
+    def mode(cls, prefix, target, flags, params=None):
+        return cls(prefix, "MODE", target, flags, params)
 
     @classmethod
     def quit(cls, prefix, message):
@@ -186,7 +186,4 @@ class IRCMessage(object):
 
     @classmethod
     def kick(cls, prefix, channel, nickname, comment=None):
-        if comment:
-            return cls(prefix, "KICK", channel.name, nickname.nickname, comment)
-        else:
-            return cls(prefix, "KICK", channel.name, nickname.nickname)
+        return cls(prefix, "KICK", channel.name, nickname.nickname, comment)

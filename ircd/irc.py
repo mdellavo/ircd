@@ -97,6 +97,12 @@ class Channel(object):
     def is_operator(self, nickname):
         return nickname in self.operators
 
+    def is_member(self, nickname):
+        return nickname in self.members
+
+    def is_invited(self, nickname):
+        return nickname in self.invited
+
     @property
     def is_invite_only(self):
         return self.mode.has_flag(Mode.CHANNEL_IS_INVITE_ONLY)
@@ -114,6 +120,12 @@ class Channel(object):
 
     def set_topic(self, topic):
         self.topic = topic
+
+    def get_member(self, nickname):
+        for member in self.members:
+            if member.nickname == nickname:
+                return member
+        return None
 
     def join(self, nickname, key=None):
         if self.key and key != self.key:
@@ -134,8 +146,8 @@ class Channel(object):
     def set_mode(self, flags, param=None):
         return self.mode.set_flags(flags, param=param)
 
-    def clear_mode(self, flags):
-        return self.mode.clear_flags(flags)
+    def clear_mode(self, flags, param=None):
+        return self.mode.clear_flags(flags, param=param)
 
     def invite(self, nickname):
         if nickname not in self.invited:
@@ -264,7 +276,17 @@ class Handler(object):
 
     @validate(identity=True, num_params=1)
     def names(self, msg):
-        pass
+        channel_names = msg.args[0].split(",")
+        for channel_name in channel_names:
+            channel = self.irc.get_channel(channel_name)
+            if channel:
+                self.irc.send_names(self.client, channel)
+
+    @validate(identity=True)
+    def list(self, msg):
+        channel_names = msg.args[0].split(",")
+        for channel_name in channel_names:
+            channel = self.irc.get_channel(channel_name)
 
 
 class IRC(object):
@@ -389,9 +411,13 @@ class IRC(object):
         self.send_to_channel(client, channel, IRCMessage.join(client.identity, name))
 
         self.send_topic(client, channel)
+        self.send_names(client, channel)
 
-        client.send(IRCMessage.reply_names(self.host, client.nickname, channel))
-        client.send(IRCMessage.reply_endnames(self.host, client.nickname, channel))
+    def send_names(self, client, channel):
+        nickname = self.get_nickname(client.nickname)
+        if not (channel.is_private or channel.is_secret) or channel.is_member(nickname):
+            client.send(IRCMessage.reply_names(self.host, client.nickname, channel))
+            client.send(IRCMessage.reply_endnames(self.host, client.nickname, channel))
 
     def send_topic(self, client, channel):
         if channel.topic:
@@ -442,19 +468,23 @@ class IRC(object):
 
     def set_channel_mode(self, client, target, flags, param=None):
         channel = self.get_channel(target)
+        nickname = self.get_nickname(client.nickname)
+        if not channel.is_operator(nickname):
+            raise IRCError(IRCMessage.error_channel_operator_needed(client.identity, channel.name))
+
         op, flags = flags[0], flags[1:]
 
         modified = None
-        if op == "+":
-            try:
+        try:
+            if op == "+":
                 modified = channel.set_mode(flags, param=param)
-            except ModeParamMissing:
-                raise IRCError(IRCMessage.error_needs_more_params(client.identity, "MODE"))
-        elif op == "-":
-            modified = channel.clear_mode(flags)
+            elif op == "-":
+                modified = channel.clear_mode(flags, param=param)
+        except ModeParamMissing:
+            raise IRCError(IRCMessage.error_needs_more_params(client.identity, "MODE"))
 
         if modified:
-            self.send_to_channel(client, channel, IRCMessage.mode(client.identity, target, op + flags))
+            self.send_to_channel(client, channel, IRCMessage.mode(client.identity, target, op + flags, param))
 
     def set_user_mode(self, client, target, flags):
         op, flags = flags[0], flags[1:]

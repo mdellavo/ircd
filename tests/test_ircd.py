@@ -141,7 +141,7 @@ class TestIRC(TestCase):
             "MODE # +k :sekret"
         ])
         self.assertReplies(client_a, [
-            ":foo!foo@localhost MODE # :+k"
+            ":foo!foo@localhost MODE # +k :sekret"
         ])
 
         self.assertEqual(self.irc.channels["#"].key, "sekret")
@@ -257,6 +257,14 @@ class TestIRC(TestCase):
 
         channel = self.irc.channels["#"]
 
+        # check operator
+        self.process(client_b, [
+            "MODE # :+n"
+        ])
+        self.assertReplies(client_b, [
+            ":bar!bar@localhost 482 :# You're not channel operator"
+        ])
+
         self.process(client_a, [
             "MODE # :+n"
         ])
@@ -276,6 +284,46 @@ class TestIRC(TestCase):
 
         self.assertEqual(channel.mode.mode, "")
 
+    def test_channel_operator(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+        self.join(client_a, "#")
+
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+        self.join(client_b, "#")
+
+        self.assertReplies(client_a, [
+            ":bar!bar@localhost JOIN :#"
+        ])
+
+        channel = self.irc.channels["#"]
+
+        self.process(client_a, [
+            "MODE # +o :bar"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost MODE # +o :bar"
+        ])
+        self.assertReplies(client_b, [
+            ":foo!foo@localhost MODE # +o :bar"
+        ])
+
+        nickname = self.irc.get_nickname(client_b.nickname)
+        self.assertIn(nickname, channel.operators)
+
+        self.process(client_a, [
+            "MODE # -o :bar"
+        ])
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost MODE # -o :bar"
+        ])
+        self.assertReplies(client_b, [
+            ":foo!foo@localhost MODE # -o :bar"
+        ])
+
+        self.assertNotIn(nickname, channel.operators)
+
     def test_set_channel_secret(self):
         client = self.get_client()
         self.ident(client, "foo")
@@ -292,7 +340,7 @@ class TestIRC(TestCase):
             "MODE # +k :sekret"
         ])
         self.assertReplies(client, [
-            ":foo!foo@localhost MODE # :+k"
+            ":foo!foo@localhost MODE # +k :sekret"
         ])
 
         self.assertEqual(self.irc.channels["#"].key, "sekret")

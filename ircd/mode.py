@@ -11,7 +11,7 @@ class ModeFlag(object):
     def set(self, param=None):
         self.value = True
 
-    def clear(self):
+    def clear(self, param=None):
         self.value = False
 
     def is_set(self):
@@ -100,8 +100,8 @@ class ChannelKeyFlag(ChannelModeFlag):
         super(ChannelKeyFlag, self).set(param=param)
         self.channel.key = param
 
-    def clear(self):
-        super(ChannelKeyFlag, self).clear()
+    def clear(self, param=None):
+        super(ChannelKeyFlag, self).clear(param=param)
         self.channel.key = None
 
 
@@ -111,6 +111,23 @@ class ChannelSecretFlag(ChannelModeFlag):
 
 class ChannelOperatorFlag(ChannelModeFlag):
     KEY = "o"
+
+    def set(self, param=None):
+        if not param:
+            raise ModeParamMissing()
+
+        super(ChannelOperatorFlag, self).set(param=param)
+        nickname = self.channel.get_member(param)
+        if nickname not in self.channel.operators:
+            self.channel.operators.append(nickname)
+
+    def clear(self, param=None):
+        if not param:
+            raise ModeParamMissing()
+
+        nickname = self.channel.get_member(param)
+        if nickname and nickname in self.channel.operators:
+            self.channel.operators.remove(nickname)
 
 
 class Mode(object):
@@ -161,16 +178,16 @@ class Mode(object):
             return False
         return self.flags[flag].is_set()
 
-    def clear_flag(self, flag):
+    def clear_flag(self, flag, param=None):
         is_set = self.has_flag(flag)
         if is_set:
-            self.flags[flag].clear()
+            self.flags[flag].clear(param=param)
         return is_set
 
-    def clear_flags(self, flags):
+    def clear_flags(self, flags, param=None):
         cleared_flags = []
         for flag in flags:
-            if self.clear_flag(flag):
+            if self.clear_flag(flag, param=param):
                 cleared_flags.append(flag)
         return "".join(cleared_flags)
 
