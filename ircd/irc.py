@@ -286,8 +286,7 @@ class Handler(object):
     def list(self, msg):
         channel_names = msg.args[0].split(",") if msg.args else None
         channels = self.irc.list_channels(self.client, names=channel_names)
-        if channels:
-            self.irc.send_list(self.client, channels)
+        self.irc.send_list(self.client, channels)
 
 
 class IRC(object):
