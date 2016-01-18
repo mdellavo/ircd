@@ -521,3 +521,27 @@ class TestIRC(TestCase):
             ":foo!foo@localhost 322 #baz 2 :#baz#baz#baz",
             ":foo!foo@localhost 323 :End of /LIST",
         ])
+
+    def test_away(self):
+        client_a = self.get_client()
+        self.ident(client_a, "foo")
+        self.process(client_a, [
+            "AWAY :gone fishin"
+        ])
+
+        nickname = self.irc.get_nickname(client_a.nickname)
+        self.assertTrue(nickname.is_away)
+        self.assertEqual(nickname.away_message, "gone fishin")
+
+        client_b = self.get_client()
+        self.ident(client_b, "bar")
+
+        self.process(client_b, [
+            "PRIVMSG foo :hello"
+        ])
+
+        self.assertReplies(client_b, [
+            ":foo!foo@localhost PRIVMSG bar!bar@localhost :gone fishin"
+        ])
+
+

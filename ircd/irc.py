@@ -37,6 +37,7 @@ class Nickname(object):
         self.mode = Mode.for_nickname(self)
         self.last_seen = datetime.utcnow()
         self.channels = []
+        self.away_message = None
 
     def __repr__(self):
         return "Nickname({})".format(self.nickname)
@@ -63,6 +64,14 @@ class Nickname(object):
     def parted_channel(self, channel):
         if channel in self.channels:
             self.channels.remove(channel)
+
+    def set_away(self, message):
+        self.set_mode(Mode.AWAY)
+        self.away_message = message
+
+    def clear_away(self):
+        self.clear_mode(Mode.AWAY)
+        self.away_message = None
 
     is_away = property(lambda self: self.mode.has_flag(Mode.AWAY))
     is_invisible = property(lambda self: self.mode.has_flag(Mode.INVISIBLE))
@@ -176,6 +185,10 @@ class Handler(object):
             except:
                 log.exception("error applying message: %s", msg)
 
+        nickname = self.irc.get_nickname(self.client.nickname) if self.client.nickname else None
+        if nickname:
+            nickname.seen()
+
     def nick(self, msg):
         nickname = msg.args[0]
         self.irc.set_nick(self.client, nickname)
@@ -287,6 +300,15 @@ class Handler(object):
         channel_names = msg.args[0].split(",") if msg.args else None
         channels = self.irc.list_channels(self.client, names=channel_names)
         self.irc.send_list(self.client, channels)
+
+    @validate(identity=True)
+    def away(self, msg):
+        message = msg.args[0] if msg.args else None
+        nickname = self.irc.get_nickname(self.client.nickname)
+        if message:
+            nickname.set_away(message)
+        else:
+            nickname.clear_away()
 
 
 class IRC(object):
@@ -475,7 +497,12 @@ class IRC(object):
         other = self.get_client(nickname)
         if not other:
             raise IRCError(IRCMessage.error_no_such_nickname(client.identity, nickname))
-        other.send(IRCMessage.private_message(client.identity, nickname, text))
+
+        other_nick = self.get_nickname(nickname)
+        if not other_nick.is_away:
+            other.send(IRCMessage.private_message(client.identity, nickname, text))
+        else:
+            client.send(IRCMessage.private_message(other.identity, client.identity, other_nick.away_message))
 
     def ping(self, client):
         client.send(IRCMessage.ping(self.host))
