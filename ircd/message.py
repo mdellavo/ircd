@@ -93,6 +93,18 @@ class IRCMessage(object):
         return cls(prefix, "PONG", server)
 
     @classmethod
+    def reply_away(cls, prefix, nickname, message):
+        return cls(prefix, "301", nickname, message)
+
+    @classmethod
+    def reply_unaway(cls, prefix):
+        return cls(prefix, "305", "You are no longer marked as being away")
+
+    @classmethod
+    def reply_nowaway(cls, prefix):
+        return cls(prefix, "306", "You have been marked as being away")
+
+    @classmethod
     def reply_notopic(cls, prefix, target, channel):
         return cls(prefix, "331", target, channel.name)
 

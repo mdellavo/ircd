@@ -529,6 +529,10 @@ class TestIRC(TestCase):
             "AWAY :gone fishin"
         ])
 
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost 306 :You have been marked as being away"
+        ])
+
         nickname = self.irc.get_nickname(client_a.nickname)
         self.assertTrue(nickname.is_away)
         self.assertEqual(nickname.away_message, "gone fishin")
@@ -541,7 +545,15 @@ class TestIRC(TestCase):
         ])
 
         self.assertReplies(client_b, [
-            ":foo!foo@localhost PRIVMSG bar!bar@localhost :gone fishin"
+            ":foo!foo@localhost 301 foo :gone fishin"
+        ])
+
+        self.process(client_a, [
+            "AWAY"
+        ])
+
+        self.assertReplies(client_a, [
+            ":foo!foo@localhost 305 :You are no longer marked as being away"
         ])
 
 

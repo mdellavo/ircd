@@ -307,9 +307,11 @@ class Handler(object):
         nickname = self.irc.get_nickname(self.client.nickname)
         if message:
             nickname.set_away(message)
+            msg = IRCMessage.reply_nowaway(self.client.identity)
         else:
             nickname.clear_away()
-
+            msg = IRCMessage.reply_unaway(self.client.identity)
+        self.client.send(msg)
 
 class IRC(object):
     def __init__(self, host):
@@ -499,10 +501,10 @@ class IRC(object):
             raise IRCError(IRCMessage.error_no_such_nickname(client.identity, nickname))
 
         other_nick = self.get_nickname(nickname)
-        if not other_nick.is_away:
-            other.send(IRCMessage.private_message(client.identity, nickname, text))
+        if other_nick.is_away:
+            client.send(IRCMessage.reply_away(other.identity, nickname, other_nick.away_message))
         else:
-            client.send(IRCMessage.private_message(other.identity, client.identity, other_nick.away_message))
+            other.send(IRCMessage.private_message(client.identity, nickname, text))
 
     def ping(self, client):
         client.send(IRCMessage.ping(self.host))
