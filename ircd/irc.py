@@ -1,3 +1,4 @@
+import re
 import logging
 from Queue import Queue
 from functools import wraps
@@ -80,6 +81,24 @@ class Nickname(object):
     is_operator = property(lambda self: self.mode.has_flag(Mode.OPERATOR))
     is_local_operator = property(lambda self: self.mode.has_flag(Mode.OPERATOR))
     has_server_notices = property(lambda self: self.mode.has_flag(Mode.SERVER_NOTICES))
+
+
+class Mask(object):
+    def __init__(self, nickname=None, user=None, host=None):
+        self.nickname = nickname or "*"
+        self.user = user or "*"
+        self.host = host or "*"
+        self.pattern = re.compile(self.pattern(), re.IGNORECASE)
+
+    def __str__(self):
+        return "{nickname}!{user}@{host}".format(nickname=self.nickname, user=self.user, host=self.host)
+
+    def pattern(self):
+        glob = lambda s: "(" + s.replace("*", ".*?") + ")"
+        return "{nickname}!{user}@{host}$".format(nickname=glob(self.nickname), user=glob(self.user), host=glob(self.host))
+
+    def match(self, identity):
+        return self.pattern.match(identity) is not None
 
 
 class Channel(object):
@@ -312,6 +331,7 @@ class Handler(object):
             nickname.clear_away()
             msg = IRCMessage.reply_unaway(self.client.identity)
         self.client.send(msg)
+
 
 class IRC(object):
     def __init__(self, host):
