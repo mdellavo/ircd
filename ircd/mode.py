@@ -1,3 +1,6 @@
+from .mask import Mask
+
+
 class ModeParamMissing(ValueError):
     pass
 
@@ -84,6 +87,13 @@ class ChannelUserLimitFlag(ChannelModeFlag):
 
 class ChannelBanMaskFlag(ChannelModeFlag):
     KEY = "b"
+
+    def set(self, param=None):
+        super(ChannelBanMaskFlag, self).set(param=param)
+        if param:
+            mask = Mask.parse(param)
+            if mask:
+                self.channel.add_ban(mask)
 
 
 class ChannelVoiceFlag(ChannelModeFlag):
