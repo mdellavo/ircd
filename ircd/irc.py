@@ -151,6 +151,7 @@ class Handler(object):
         comment = msg.args[2] if len(msg.args) > 2 else None
         self.irc.kick(self.client, channel, nickname, comment=comment)
 
+    # FIXME push to IRC
     @validate(identity=True, num_params=1)
     def names(self, msg):
         channel_names = msg.args[0].split(",")
@@ -165,6 +166,7 @@ class Handler(object):
         channels = self.irc.list_channels(self.client, names=channel_names)
         self.irc.send_list(self.client, channels)
 
+    # FIXME push to IRC
     @validate(identity=True)
     def away(self, msg):
         message = msg.args[0] if msg.args else None
@@ -299,6 +301,9 @@ class IRC(object):
 
         if not channel.can_join_channel(nickname):
             raise IRCError(IRCMessage.error_invite_only_channel(client.identity, name))
+
+        if channel.is_banned(client.identity):
+            raise IRCError(IRCMessage.error_banned_from_channel(client.identity, name))
 
         joined = channel.join(nickname, key=key)
         if not joined:

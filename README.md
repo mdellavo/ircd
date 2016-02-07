@@ -2,6 +2,10 @@
 
 a small IRCd in python
 
+## ToDo
+
+ - [ ] Complete mode support (Ban masks, etc)
+
 ## Author
 
 Marc DellaVolpe  (marc.dellavolpe@gmail.com)

@@ -162,6 +162,10 @@ class IRCMessage(object):
         return cls(prefix, "473", "{channel} :Cannot join channel (+i)".format(channel=channel))
 
     @classmethod
+    def error_banned_from_channel(cls, prefix, channel):
+        return cls(prefix, "474", "{channel} :Cannot join channel (+b)".format(channel=channel))
+
+    @classmethod
     def error_bad_channel_key(cls, prefix, channel):
         return cls(prefix, "475", "{channel} :Cannot join channel (+k)".format(channel=channel))
 

@@ -16,6 +16,7 @@ class Channel(object):
         self.invited = []
         self.mode = Mode.for_channel(self)
         self.bans = []
+        self.exceptions = []
 
     def __eq__(self, other):
         return other and self.name == other.name
@@ -92,9 +93,26 @@ class Channel(object):
         if nickname in self.members:
             self.members.remove(nickname)
 
+    def _add_mask(self, mask, collection):
+        if mask not in collection:
+            collection.append(mask)
+
+    def _remove_mask(self, mask, collection):
+        if mask in collection:
+            collection.remove(mask)
+
     def add_ban(self, mask):
-        self.bans.append(mask)
+        self._add_mask(mask, self.bans)
 
     def remove_ban(self, mask):
-        if mask in self.bans:
-            self.bans.remove(mask)
+        self._remove_mask(mask, self.bans)
+
+    def add_exception(self, mask):
+        self._add_mask(mask, self.exceptions)
+
+    def remove_exception(self, mask):
+        self._remove_mask(mask, self.exceptions)
+
+    def is_banned(self, identity):
+        has_match = lambda collection: any(mask.match(identity) for mask in collection)
+        return has_match(self.bans) and not has_match(self.exceptions)

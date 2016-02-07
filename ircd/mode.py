@@ -85,15 +85,48 @@ class ChannelUserLimitFlag(ChannelModeFlag):
     KEY = "l"
 
 
-class ChannelBanMaskFlag(ChannelModeFlag):
-    KEY = "b"
+class MaskFlag(ChannelModeFlag):
+
+    def add_mask(self, mask):
+        pass
+
+    def clear_mask(self, mask):
+        pass
+
+    def parse(self, param):
+        return Mask.parse(param) if param else None
 
     def set(self, param=None):
-        super(ChannelBanMaskFlag, self).set(param=param)
-        if param:
-            mask = Mask.parse(param)
-            if mask:
-                self.channel.add_ban(mask)
+        super(MaskFlag, self).set(param=param)
+        mask = self.parse(param)
+        if mask:
+            self.add_mask(mask)
+
+    def clear(self, param=None):
+        super(MaskFlag, self).clear(param=param)
+        mask = self.parse(param)
+        if mask:
+            self.clear_mask(mask)
+
+
+class ChannelBanMaskFlag(MaskFlag):
+    KEY = "b"
+
+    def add_mask(self, mask):
+        self.channel.add_ban(mask)
+
+    def clear_mask(self, mask):
+        self.channel.remove_ban(mask)
+
+
+class ChannelExceptionMaskFlag(MaskFlag):
+    KEY = "e"
+
+    def add_mask(self, mask):
+        self.channel.add_exception(mask)
+
+    def clear_mask(self, mask):
+        self.channel.remove_exception(mask)
 
 
 class ChannelVoiceFlag(ChannelModeFlag):
