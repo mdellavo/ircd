@@ -50,7 +50,7 @@ class Channel(object):
         return self.mode.has_flag(Mode.CHANNEL_IS_SECRET)
 
     def can_join_channel(self, nickname):
-        return nickname in self.invited if self.is_invite_only else True
+        return self.is_invited(nickname) if self.is_invite_only else True
 
     def set_topic(self, topic):
         self.topic = topic
