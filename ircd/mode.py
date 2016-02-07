@@ -193,8 +193,8 @@ class Mode(object):
                       UserLocalOperatorFlag, UserServerNoticesFlag, UserOperatorFlag)
     ALL_CHANNEL_MODES = (ChannelPrivateFlag, ChannelSecretFlag, ChannelInviteOnlyFlag,
                          ChannelTopicClosedFlag, ChannelNoMessagesFlag, ChannelModeratedFlag,
-                         ChannelUserLimitFlag, ChannelBanMaskFlag, ChannelVoiceFlag, ChannelKeyFlag,
-                         ChannelOperatorFlag)
+                         ChannelUserLimitFlag, ChannelBanMaskFlag, ChannelExceptionMaskFlag,
+                         ChannelVoiceFlag, ChannelKeyFlag, ChannelOperatorFlag)
 
     def __init__(self, flags):
         self.flags = {flag.KEY: flag for flag in flags}

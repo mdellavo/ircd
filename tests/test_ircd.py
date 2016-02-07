@@ -456,6 +456,25 @@ class TestIRC(TestCase):
             ":bar!bar@localhost 474 :# :Cannot join channel (+b)"
         ])
 
+        self.process(client_a, [
+            "MODE # +e *!*@localhost"
+        ])
+
+        print channel.exceptions
+        self.assertFalse(channel.is_banned(client_b.identity))
+
+        self.process(client_a, [
+            "MODE # -e *!*@localhost"
+        ])
+
+        self.assertTrue(channel.is_banned(client_b.identity))
+
+        self.process(client_a, [
+            "MODE # -b *!*@localhost"
+        ])
+
+        self.assertFalse(channel.is_banned(client_b.identity))
+
     def test_kick(self):
         client_a = self.get_client()
         self.ident(client_a, "foo")
