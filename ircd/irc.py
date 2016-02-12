@@ -191,6 +191,9 @@ class IRC(object):
         self.channels = {}
         self.nicknames = {}
 
+    def get_channels(self):
+        return self.channels.values()
+
     def get_channel(self, name):
         return self.channels.get(name)
 
@@ -217,6 +220,9 @@ class IRC(object):
     def remove_client(self, nickname):
         if nickname in self.clients:
             del self.clients[nickname]
+
+    def get_nicknames(self):
+        return self.nicknames.values()
 
     def has_nickname(self, nickname):
         return nickname in self.nicknames

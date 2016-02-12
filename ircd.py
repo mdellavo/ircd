@@ -8,7 +8,7 @@ import time
 import gevent
 
 from ircd import Server, Client, IRC
-
+from httpd import http_worker
 
 PORT = 9999
 ADDRESS = "0.0.0.0", PORT
@@ -90,6 +90,7 @@ def main():
     irc = IRC(host)
 
     gevent.spawn(irc_worker, irc)
+    gevent.spawn(http_worker, irc)
 
     server = AsyncServer(irc, ADDRESS, KEY_FILE)
     server.serve()

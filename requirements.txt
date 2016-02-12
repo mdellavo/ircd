@@ -1,2 +1,3 @@
 gevent
 nose
+gevent-websocket
