@@ -235,6 +235,12 @@ class IRC(object):
         handler = Handler(self, client)
         handler(msg)
 
+    def processor(self):
+        while True:
+            client, msg = self.incoming.get()
+            self.process(client, msg)
+
+
     def submit(self, client, msg):
         self.incoming.put((client, msg))
 

@@ -1,13 +1,16 @@
 import logging
 
+import gevent
 from gevent.pywsgi import WSGIServer
 
 from pyramid.config import Configurator
 from pyramid.view import view_config
 from pyramid.httpexceptions import HTTPBadRequest
 
+import geventwebsocket
 from geventwebsocket.handler import WebSocketHandler
 
+from ircd.net import Transport, TransportError
 
 ADDRESS = ('0.0.0.0', 8080)
 
@@ -16,6 +19,32 @@ log = logging.getLogger("httpd")
 response = lambda status, **kwargs: dict(status=status, **kwargs)
 ok = lambda **kwargs: response("ok", **kwargs)
 error = lambda **kwargs: response("error", **kwargs)
+
+
+class WebsocketTransport(Transport):
+    def __init__(self, websocket):
+        self.sock = websocket
+
+    def close(self):
+        self.sock.close()
+
+    def read(self):
+        while True:
+            try:
+                data = self.sock.receive()
+            except geventwebsocket.WebSocketError as e:
+                raise TransportError(e)
+
+            if not data:
+                break
+
+            yield data
+
+    def write(self, msg):
+        try:
+            self.sock.send(msg)
+        except geventwebsocket.WebSocketError as e:
+            raise TransportError(e)
 
 
 def project_channel(channel):
@@ -65,12 +94,27 @@ def get_channel(request):
     return ok(channel=project_nickname(nickname))
 
 
+def socket_reader(socket):
+    pass
+
+
+def socket_writer(socket):
+    pass
+
+
 @view_config(route_name="socket", renderer="socket")
 def get_socket(request):
     if "wsgi.websocket" not in request.environ:
         raise HTTPBadRequest()
 
     socket = request.environ['wsgi.websocket']
+
+    reader = gevent.spawn(socket_reader, socket)
+    writer = gevent.spawn(socket_writer, socket)
+
+    gevent.joinall([reader, writer])
+
+    return {"status": "ok"}
 
 
 def http_worker(irc):

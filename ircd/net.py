@@ -11,23 +11,25 @@ log = logging.getLogger(__name__)
 BACKLOG = 10
 PING_INTERVAL = 60
 PING_GRACE = 5
+IDENT_TIMEOUT = 10
 
 
 # FIXME set a timeout and drop if they dont ident in N seconds
 class Client(object):
-    def __init__(self, irc, sock, address):
+    def __init__(self, irc, transport):
         self.irc = irc
-        self.socket = sock
-        self.address = address
+        self.transport = transport
 
         self.nickname = None
         self.user = None
         self.realname = None
-        self.host = socket.getfqdn(address[0]) or address[0]
 
-        self.buffer = ""
         self.outgoing = Queue()
         self.ping_count = 0
+
+    @property
+    def host(self):
+        return self.transport.host if self.transport else None
 
     @property
     def identity(self):
@@ -41,17 +43,28 @@ class Client(object):
 
     @property
     def is_connected(self):
-        return self.socket is not None
+        return self.transport is not None
 
-    def feed(self, data):
-        self.buffer += data
-        while TERMINATOR in self.buffer:
-            line, self.buffer = self.buffer.split(TERMINATOR, 1)
-            log.debug(">>> %s", line)
-            self.irc.submit(self, parsemsg(line))
+    def reader(self):
+        start = time.time()
+        try:
+            for msg in self.transport.read():
+                elapsed = time.time() - start
+                if elapsed > IDENT_TIMEOUT and not self.has_identity:
+                    log.error("client ident timeout: %s", self.host)
+                    self.irc.drop_client(self, message="ident timeout")
+                    break
 
-    def take(self):
+                if msg:
+                    self.irc.submit(self, msg)
+
+        except TransportError as e:
+            log.error("error reading from client: %s", e)
+            self.irc.drop_client(self, message=str(e))
+
+    def writer(self):
         last_ping = time.time()
+
         while self.is_connected:
             try:
                 msg = self.outgoing.get(timeout=PING_INTERVAL)
@@ -59,7 +72,11 @@ class Client(object):
                 msg = None
 
             if msg:
-                yield msg.format() + TERMINATOR
+                try:
+                    self.transport.write(msg)
+                except Transport as e:
+                    log.error("error writing from client: %s", e)
+                    self.irc.drop_client(self, message=str(e))
 
             diff = time.time() - last_ping
             if diff > PING_INTERVAL:
@@ -80,9 +97,8 @@ class Client(object):
         self.outgoing.put(msg)
 
     def disconnect(self):
-        self.socket.shutdown(socket.SHUT_RDWR)
-        self.socket.close()
-        self.socket = None
+        self.transport.close()
+        self.transport = None
 
     def clear_ping_count(self):
         self.ping_count = 0
@@ -94,6 +110,66 @@ class Client(object):
     @property
     def has_identity(self):
         return self.has_nickname and all([self.user, self.realname])
+
+
+class Transport(object):
+
+    @property
+    def is_connected(self):
+        return False
+
+    def close(self):
+        pass
+
+    def read(self):
+        pass
+
+    def write(self, msg):
+        pass
+
+
+class TransportError(Exception):
+    def __init__(self, e):
+        super(TransportError, self).__init__(str(e))
+
+
+class SocketTransport(Transport):
+    def __init__(self, sock, address):
+        self.sock = sock
+        self.host = socket.getfqdn(address[0]) or address[0]
+        self.buffer = ""
+
+    def close(self):
+        self.sock.shutdown(socket.SHUT_RDWR)
+        self.sock.close()
+
+    def read(self):
+        while True:
+            try:
+                data = self.sock.recv(4096)
+                if not data:
+                    break
+            except socket.error as e:
+                timeout = "timed out" in str(e)  # bug in python ssl, doesnt raise timeout
+                if not timeout:
+                    raise TransportError(e)
+                data = None
+
+            if not data:
+                yield None
+                continue
+
+            self.buffer += data
+            while TERMINATOR in self.buffer:
+                line, self.buffer = self.buffer.split(TERMINATOR, 1)
+                log.debug(">>> %s", line)
+                yield parsemsg(line)
+
+    def write(self, msg):
+        try:
+            self.sock.write(msg.format() + TERMINATOR)
+        except socket.error as e:
+            raise TransportError(e)
 
 
 class Server(object):
