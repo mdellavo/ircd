@@ -1,8 +1,14 @@
+from Queue import Queue
 from unittest import TestCase
 
-from ircd import IRC
+from ircd import IRC, Transport
 from ircd.net import parsemsg, Client
 from ircd.irc import SERVER_NAME, SERVER_VERSION
+
+
+class MockTransport(Transport):
+    def __init__(self):
+        self.host = "localhost"
 
 
 class TestIRC(TestCase):
@@ -10,12 +16,15 @@ class TestIRC(TestCase):
         self.irc = IRC("localhost")
 
     def get_client(self):
-        return Client(self.irc, None, ("127.0.0.1", -1))
+        return Client(self.irc, MockTransport())
 
     def process(self, client, messages):
+        """
+        Feed messages to the client
+        """
+
         for message in messages:
-            msg = parsemsg(message)
-            self.irc.process(client, msg)
+            client.irc.process(client, parsemsg(message))
 
     def assertReplies(self, client, values):
         replies = []
