@@ -4,7 +4,7 @@ import logging
 import socket
 from Queue import Queue, Empty
 
-from .message import parsemsg, TERMINATOR
+from ircd.message import parsemsg, TERMINATOR
 
 log = logging.getLogger(__name__)
 
@@ -113,10 +113,6 @@ class Client(object):
 
 
 class Transport(object):
-
-    @property
-    def is_connected(self):
-        return False
 
     def close(self):
         pass

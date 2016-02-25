@@ -1,4 +1,3 @@
-from Queue import Queue
 from unittest import TestCase
 
 from ircd import IRC, Transport

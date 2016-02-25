@@ -6,7 +6,7 @@ import socket
 
 import gevent
 
-from ircd import Server, Client, IRC, SocketTransport, TransportError
+from ircd import Server, Client, IRC, SocketTransport
 from httpd import http_worker
 
 PORT = 9999
@@ -25,9 +25,8 @@ class AsyncServer(Server):
 
     def on_connect(self, client_sock, address):
         log.info("new client connection from %s", address[0])
-        transport = SocketTransport(self.setup_client_socket(client_sock), address)
-        client = Client(self.irc, transport)
 
+        client = Client(self.irc, SocketTransport(self.setup_client_socket(client_sock), address))
         gevent.spawn(client.reader)
         gevent.spawn(client.writer)
 

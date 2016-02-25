@@ -3,11 +3,11 @@ from Queue import Queue
 from functools import wraps
 from datetime import datetime
 
-from .chan import Channel
-from .nick import Nickname
-from .message import IRCMessage
-from .mode import Mode, ModeParamMissing
-from .common import IRCError
+from ircd.chan import Channel
+from ircd.nick import Nickname
+from ircd.message import IRCMessage
+from ircd.mode import Mode, ModeParamMissing
+from ircd.common import IRCError
 
 SERVER_NAME = "ircd"
 SERVER_VERSION = "0.1"
@@ -239,7 +239,6 @@ class IRC(object):
         while True:
             client, msg = self.incoming.get()
             self.process(client, msg)
-
 
     def submit(self, client, msg):
         self.incoming.put((client, msg))

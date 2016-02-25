@@ -1,3 +1,5 @@
 gevent
 nose
 gevent-websocket
+pyramid
+webtest

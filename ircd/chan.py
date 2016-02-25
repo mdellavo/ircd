@@ -1,6 +1,6 @@
 import logging
 
-from .mode import Mode
+from ircd.mode import Mode
 
 log = logging.getLogger(__name__)
 

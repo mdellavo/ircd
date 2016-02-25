@@ -1,4 +1,4 @@
-from .mask import Mask
+from ircd.mask import Mask
 
 
 class ModeParamMissing(ValueError):

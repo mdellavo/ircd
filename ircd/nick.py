@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from .mode import Mode
+from ircd.mode import Mode
 
 
 class Nickname(object):

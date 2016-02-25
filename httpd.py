@@ -1,4 +1,5 @@
 import logging
+import socket
 
 import gevent
 from gevent.pywsgi import WSGIServer
@@ -10,7 +11,7 @@ from pyramid.httpexceptions import HTTPBadRequest
 import geventwebsocket
 from geventwebsocket.handler import WebSocketHandler
 
-from ircd.net import Transport, TransportError
+from ircd import Client, Transport, TransportError
 
 ADDRESS = ('0.0.0.0', 8080)
 
@@ -22,8 +23,9 @@ error = lambda **kwargs: response("error", **kwargs)
 
 
 class WebsocketTransport(Transport):
-    def __init__(self, websocket):
-        self.sock = websocket
+    def __init__(self, sock, address):
+        self.sock = sock
+        self.host = socket.getfqdn(address)
 
     def close(self):
         self.sock.close()
@@ -86,20 +88,12 @@ def nickname_index(request):
 
 
 @view_config(route_name="nickname", renderer="json")
-def get_channel(request):
+def get_nickname(request):
     name = request.matchdict.get("name")
     nickname = request.irc.get_nickname(name)
     if not nickname:
         return error(message="unknown nickname")
-    return ok(channel=project_nickname(nickname))
-
-
-def socket_reader(socket):
-    pass
-
-
-def socket_writer(socket):
-    pass
+    return ok(nickname=project_nickname(nickname))
 
 
 @view_config(route_name="socket", renderer="socket")
@@ -108,29 +102,34 @@ def get_socket(request):
         raise HTTPBadRequest()
 
     socket = request.environ['wsgi.websocket']
-
-    reader = gevent.spawn(socket_reader, socket)
-    writer = gevent.spawn(socket_writer, socket)
+    transport = WebsocketTransport(socket, request.environ['REMOTE_ADDR'])
+    client = Client(request.irc, transport)
+    reader = gevent.spawn(client.reader)
+    writer = gevent.spawn(client.writer)
 
     gevent.joinall([reader, writer])
 
     return {"status": "ok"}
 
 
-def http_worker(irc):
+def build_app(irc):
     config = Configurator()
 
     config.add_request_method(lambda _: irc, 'irc', reify=True)
 
-    config.add_route("channels", "/channels")
     config.add_route("channel", "/channels/{name}")
-    config.add_route("nicknames", "/nicknames")
+    config.add_route("channels", "/channels")
     config.add_route("nickname", "/nicknames/{name}")
+    config.add_route("nicknames", "/nicknames")
     config.add_route("socket", "/socket")
 
     config.scan()
 
-    app = config.make_wsgi_app()
+    return config.make_wsgi_app()
+
+
+def http_worker(irc):
+    app = build_app(irc)
     server = WSGIServer(ADDRESS, app, handler_class=WebSocketHandler)
     log.info("serving on %s:%s", *ADDRESS)
     server.serve_forever()
