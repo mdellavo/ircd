@@ -46,6 +46,16 @@ class Prefix(object):
     def __str__(self):
         return self.prefix
 
+    def to_dict(self):
+        if self.name:
+            return {"name": self.name}
+
+        return {
+            "nick": self.nickname,
+            "user": self.user,
+            "host": self.host,
+        }
+
 
 class IRCMessage(object):
     def __init__(self, prefix, command, *args):
@@ -55,6 +65,13 @@ class IRCMessage(object):
 
     def __str__(self):
         return "{}<command={}, args={}, prefix={}>".format(self.__class__.__name__, self.command, self.args, self.prefix)
+
+    def to_dict(self):
+        return {
+            "prefix": self.prefix.to_dict() if self.prefix else None,
+            "command": self.command,
+            "args": self.args,
+        }
 
     def format(self):
         parts = []

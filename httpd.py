@@ -1,5 +1,6 @@
-import logging
+import json
 import socket
+import logging
 
 import gevent
 from gevent.pywsgi import WSGIServer
@@ -12,6 +13,7 @@ import geventwebsocket
 from geventwebsocket.handler import WebSocketHandler
 
 from ircd import Client, Transport, TransportError
+from ircd.message import parsemsg
 
 ADDRESS = ('0.0.0.0', 8080)
 
@@ -40,11 +42,11 @@ class WebsocketTransport(Transport):
             if not data:
                 break
 
-            yield data
+            yield parsemsg(data)
 
     def write(self, msg):
         try:
-            self.sock.send(msg)
+            self.sock.send(json.dumps(msg.to_dict()))
         except geventwebsocket.WebSocketError as e:
             raise TransportError(e)
 
@@ -96,7 +98,7 @@ def get_nickname(request):
     return ok(nickname=project_nickname(nickname))
 
 
-@view_config(route_name="socket", renderer="socket")
+@view_config(route_name="socket", renderer="json")
 def get_socket(request):
     if "wsgi.websocket" not in request.environ:
         raise HTTPBadRequest()

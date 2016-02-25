@@ -14,7 +14,6 @@ PING_GRACE = 5
 IDENT_TIMEOUT = 10
 
 
-# FIXME set a timeout and drop if they dont ident in N seconds
 class Client(object):
     def __init__(self, irc, transport):
         self.irc = irc
@@ -38,7 +37,8 @@ class Client(object):
             parts.append("!")
             parts.append(self.user)
         parts.append("@")
-        parts.append(self.host)
+        if self.host:
+            parts.append(self.host)
         return "".join(parts)
 
     @property
@@ -74,7 +74,7 @@ class Client(object):
             if msg:
                 try:
                     self.transport.write(msg)
-                except Transport as e:
+                except TransportError as e:
                     log.error("error writing from client: %s", e)
                     self.irc.drop_client(self, message=str(e))
 

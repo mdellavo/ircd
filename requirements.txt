@@ -3,3 +3,4 @@ nose
 gevent-websocket
 pyramid
 webtest
+websocket-client
