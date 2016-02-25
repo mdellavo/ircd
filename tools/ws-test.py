@@ -15,8 +15,9 @@ def main(args):
 
     print
 
-    for line in ws.recv():
-        print ">>>", line.strip()
+    while ws.connected:
+        msg = ws.recv()
+        print ">>>", msg
 
 
 if __name__ == "__main__":
