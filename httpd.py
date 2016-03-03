@@ -123,7 +123,7 @@ def build_app(irc):
     config.add_route("channels", "/channels")
     config.add_route("nickname", "/nicknames/{name}")
     config.add_route("nicknames", "/nicknames")
-    config.add_route("socket", "/socket")
+    config.add_route("socket", "/")
 
     config.scan()
 

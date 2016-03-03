@@ -26,7 +26,7 @@ def validate(nickname=False, identity=False, num_params=None):
                 return None
 
             if num_params is not None and len(msg.args) < num_params:
-                raise IRCError(IRCMessage.error_needs_more_params(self.client.prefix, msg.command))
+                raise IRCError(IRCMessage.error_needs_more_params(self.client.identity, msg.command))
 
             return func(self, msg)
         return __validate
@@ -124,14 +124,14 @@ class Handler(object):
     def invite(self, msg):
         nickname = self.irc.get_nickname(msg.args[0])
         if not nickname:
-            raise IRCError(IRCMessage.error_no_such_nickname(self.client.prefix, msg.args[0]))
+            raise IRCError(IRCMessage.error_no_such_nickname(self.client.identity, msg.args[0]))
 
         channel = self.irc.get_channel(msg.args[1])
         if not channel:
-            raise IRCError(IRCMessage.error_no_such_channel(self.client.prefix, msg.args[1]))
+            raise IRCError(IRCMessage.error_no_such_channel(self.client.identity, msg.args[1]))
 
         if not channel.is_operator(self.irc.get_nickname(self.client.nickname)):
-            raise IRCError(IRCMessage.error_channel_operator_needed(self.client.prefix, msg.args[1]))
+            raise IRCError(IRCMessage.error_channel_operator_needed(self.client.identity, msg.args[1]))
 
         self.irc.invite(self.client, nickname, channel)
 
@@ -139,14 +139,14 @@ class Handler(object):
     def kick(self, msg):
         channel = self.irc.get_channel(msg.args[0])
         if not channel:
-            raise IRCError(IRCMessage.error_no_such_channel(self.client.prefix, msg.args[0]))
+            raise IRCError(IRCMessage.error_no_such_channel(self.client.identity, msg.args[0]))
 
         if not channel.is_operator(self.irc.get_nickname(self.client.nickname)):
-            raise IRCError(IRCMessage.error_channel_operator_needed(self.client.prefix, msg.args[0]))
+            raise IRCError(IRCMessage.error_channel_operator_needed(self.client.identity, msg.args[0]))
 
         nickname = self.irc.get_nickname(msg.args[1])
         if not nickname:
-            raise IRCError(IRCMessage.error_no_such_nickname(self.client.prefix, msg.args[1]))
+            raise IRCError(IRCMessage.error_no_such_nickname(self.client.identity, msg.args[1]))
 
         comment = msg.args[2] if len(msg.args) > 2 else None
         self.irc.kick(self.client, channel, nickname, comment=comment)

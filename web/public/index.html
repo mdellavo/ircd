@@ -1,14 +1,40 @@
 <html>
 <head>
+    <link href='https://fonts.googleapis.com/css?family=Inconsolata:400,700&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+
     <title>IRC</title>
-    <script src="irc.js"></script>
+    <link rel="stylesheet" type="text/css" href="irc.css"/>
+    <script src="assets/jquery/dist/jquery.min.js"></script>
+    <script src="assets/underscore/underscore-min.js"></script>
+    <script src="assets/backbone/backbone-min.js"></script>
 </head>
 <body>
 
-<fieldset>
-    <legend>Server</legend>
-    <input id="nick"/>
-</fieldset>
+<div id="container">
+    <nav>
+
+    </nav>
+    <div id="content">
+
+    </div>
+</div>
+
+
+
+<script id="connect-view" type="text/template">
+    <fieldset>
+    <legend>New Connection</legend>
+
+        <label for="new-connection-nick">Nickname:</label>
+        <input id="new-connection-nick" class="nick" value="foo"/>
+
+        <label for="new-connection-host">Host:</label>
+        <input id="new-connection-host" class="host" value="dev:8080"/>
+
+        <button class="connect">Connect</button>
+    </fieldset>
+</script>
 
 </body>
+<script src="irc.js"></script>
 </html>
