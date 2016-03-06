@@ -7,9 +7,34 @@ body {
 
 #container {
     display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
 }
 
-nav {
+#connect-dialog {
+    padding: 10px;
+}
+
+#connect-dialog fieldset {
+    width: 300px;
+}
+
+#connect-dialog div {
+    padding: 5px;
+}
+
+#connect-dialog label {
+    width: 100px;
+    display: inline-block;
+    text-align: right;
+}
+
+#connect-dialog button {
+    float: right;
+}
+
+#nav {
     width: 200px;
 }
 

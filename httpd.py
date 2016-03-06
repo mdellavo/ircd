@@ -44,6 +44,8 @@ class WebsocketTransport(Transport):
 
             yield parsemsg(data)
 
+        self.sock.close()
+
     def write(self, msg):
         try:
             self.sock.send(json.dumps(msg.to_dict()))

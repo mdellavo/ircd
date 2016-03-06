@@ -22,7 +22,7 @@ def validate(nickname=False, identity=False, num_params=None):
         def __validate(self, msg):
 
             if (nickname and not self.client.has_nickname) or (identity and not self.client.has_identity):
-                self.irc.drop_client(self.client)
+                self.irc.drop_client(self.client, "invalid")
                 return None
 
             if num_params is not None and len(msg.args) < num_params:
@@ -40,6 +40,9 @@ class Handler(object):
 
     def __call__(self, msg):
         handler = msg.command.lower()
+
+        #log.debug("dispatching: %s", handler)
+
         callback = getattr(self, handler, None)
         if callback and callable(callback):
             try:
@@ -83,7 +86,6 @@ class Handler(object):
     def part(self, msg):
         chan_name = msg.args[0]
         message = msg.args[1] if len(msg.args) > 1 else None
-        print chan_name, message, msg.args
         self.irc.part_channel(chan_name, self.client, message=message)
 
     @validate(identity=True, num_params=2)
@@ -293,7 +295,7 @@ class IRC(object):
         if client.nickname:
             self.remove_client(client.nickname)
         if client.is_connected:
-            log.info("%s disconnected", client.identity)
+            log.info("%s disconnected (%s)", client.identity, message or "none")
             client.disconnect()
         nickname = self.get_nickname(client.nickname)
         if nickname:

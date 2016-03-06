@@ -71,7 +71,7 @@ class Client(object):
             except Empty:
                 msg = None
 
-            if msg:
+            if msg and self.transport:
                 try:
                     self.transport.write(msg)
                 except TransportError as e:

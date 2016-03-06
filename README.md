@@ -2,9 +2,15 @@
 
 a small IRCd in python
 
-## ToDo
+## Features
+  - gevent based
+  - ssl by default
+  - experimental http api, websocket transport and web client
 
- - [ ] Complete mode support (Ban masks, etc)
+## ToDo
+ - Complete mode support (Ban masks, etc)
+ - Server Links
+ - Services
 
 ## Author
 
