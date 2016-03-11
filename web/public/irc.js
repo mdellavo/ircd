@@ -70,6 +70,10 @@
         this.on("message/JOIN", function(msg) {
             writeChannel(msg.args[0], msg);
         });
+
+        this.on("message/PRIVMSG", function(msg) {
+            writeChannel(msg.args[0], msg);
+        })
     };
 
     Client.prototype.close = function() {
@@ -166,6 +170,7 @@
         initialize: function(options) {
             this.client = options.client;
             this.channels = {};
+            this.selected = null;
             this.listenTo(this.client, "open", this.onOpen);
             this.listenTo(this.client, "error", this.onError);
             this.listenTo(this.client, "close", this.onClose);
@@ -181,8 +186,31 @@
         },
         addTab: function(channel) {
             var tabView = new ChannelTabView({channel: channel});
-            this.listenTo(tabView, "channel-selected", this.onChannelSelected);
+            this.listenTo(tabView, "channel-selected", this.selectChannel);
             this.$el.find(".nav").append(tabView.render().el);
+        },
+        addChannel: function(channel) {
+            var view = new ChannelView({
+                channel: channel
+            });
+            this.channels[channel.get("name")] = view;
+            this.selectChannel(channel);
+            return view;
+        },
+        selectChannel: function(channel) {
+            var view = this.channels[channel.get("name")];
+            this.showContent(view);
+            this.selected = channel;
+        },
+        handleInput: function(val) {
+            if (val.charAt(0) != '/' && this.selected) {
+                val = "PRIVMSG " + this.selected.get("name") + " :" + val;
+
+                // FIXME need to also add to channel
+            } else {
+                val = val.substr(1);
+            }
+            this.client.send(val);
         },
         onOpen: function() {
             console.log("connected");
@@ -196,26 +224,15 @@
         onNewChannel: function(channel) {
             console.log("new channel", channel);
             this.addTab(channel);
-
-            var view = new ChannelView({
-                channel: channel
-            });
-            this.showContent(view);
-
-            this.channels[channel.get("name")] = view;
+            this.addChannel(channel);
         },
         onInputKey: function(e) {
             if (e.keyCode == 13) {
                 var el = this.$el.find("#input");
                 var val = el.val();
                 el.val("");
-                this.client.send(val);
+                this.handleInput(val);
             }
-        },
-        onChannelSelected: function(channel) {
-            console.log("nav-chan", channel);
-            var view = this.channels[channel.get("name")];
-            this.showContent(view);
         }
     });
 
