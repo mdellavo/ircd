@@ -1,11 +1,11 @@
 (function() {
 
     var Channel = Backbone.Model.extend({
-        initialize: function() {
-            this.messages = [];
+        defaults: function() {
+            return {messages: []};
         },
         addMessage: function(msg) {
-            this.messages.push(msg);
+            this.get("messages").push(msg);
             this.trigger("new-message", msg);
         }
     });
@@ -33,6 +33,7 @@
 
         this.socket.onmessage = function (message) {
             msg = JSON.parse(message.data);
+            console.log("incoming", msg);
             msg.timestamp = new Date();
             client.trigger("message/" + msg.command, msg);
         };
@@ -64,6 +65,10 @@
         this.on("message/NICK", function(msg) {
             this.nick = msg.args[0];
             this.trigger("nick");
+        });
+
+        this.on("message/JOIN", function(msg) {
+            writeChannel(msg.args[0], msg);
         });
     };
 
@@ -99,6 +104,18 @@
         }
     });
 
+    var MessageView = Backbone.View.extend({
+        initialize: function(options) {
+            this.message = options.message;
+        },
+        template: _.template($("#message-view").text()),
+        render: function() {
+            var text = this.message.args.join(" ");
+            this.$el.html(this.template({text: text}));
+            return this;
+        }
+    });
+
     var ChannelView = Backbone.View.extend({
         initialize: function(options) {
             this.channel = options.channel;
@@ -107,16 +124,45 @@
         template: _.template($("#channel-view").text()),
         render: function() {
             this.$el.html(this.template({}));
+
+            var view = this;
+            _.each(this.channel.get("messages"), function(msg) {
+                view.addMessage(msg);
+            });
+
             return this;
+        },
+        addMessage: function(msg) {
+            this.$el.append(new MessageView({message: msg}).render().el);
         },
         onMessage: function(msg) {
             console.log("new-message", msg);
-            var text = msg.args.join(" ");
-            this.$el.append(text);
+            this.addMessage(msg);
+        }
+    });
+
+    var ChannelTabView = Backbone.View.extend({
+        events: {
+            "click a": "onClicked"
+        },
+        initialize: function(options) {
+            this.channel = options.channel;
+        },
+        template: _.template($("#channel-tab").text()),
+        render: function() {
+            this.$el.html(this.template(this.channel.attributes));
+            return this;
+        },
+        onClicked: function(e) {
+            e.preventDefault();
+            this.trigger("channel-selected", this.channel);
         }
     });
 
     var ClientView = Backbone.View.extend({
+        events: {
+            "keyup #input": "onInputKey"
+        },
         initialize: function(options) {
             this.client = options.client;
             this.channels = {};
@@ -124,16 +170,19 @@
             this.listenTo(this.client, "error", this.onError);
             this.listenTo(this.client, "close", this.onClose);
             this.listenTo(this.client, "new-channel", this.onNewChannel);
-
         },
         template: _.template($("#client-view").text()),
-        channel_tab_template: _.template($("#channel-tab").text()),
         render: function() {
             this.$el.html(this.template({}));
             return this;
         },
         showContent: function(view) {
-            this.$el.find("#content").html(view.render().el);
+            this.$el.find(".content").html(view.render().el);
+        },
+        addTab: function(channel) {
+            var tabView = new ChannelTabView({channel: channel});
+            this.listenTo(tabView, "channel-selected", this.onChannelSelected);
+            this.$el.find(".nav").append(tabView.render().el);
         },
         onOpen: function() {
             console.log("connected");
@@ -146,6 +195,7 @@
         },
         onNewChannel: function(channel) {
             console.log("new channel", channel);
+            this.addTab(channel);
 
             var view = new ChannelView({
                 channel: channel
@@ -153,8 +203,19 @@
             this.showContent(view);
 
             this.channels[channel.get("name")] = view;
-
-            this.$el.find("#nav").append(this.channel_tab_template(channel.attributes));
+        },
+        onInputKey: function(e) {
+            if (e.keyCode == 13) {
+                var el = this.$el.find("#input");
+                var val = el.val();
+                el.val("");
+                this.client.send(val);
+            }
+        },
+        onChannelSelected: function(channel) {
+            console.log("nav-chan", channel);
+            var view = this.channels[channel.get("name")];
+            this.showContent(view);
         }
     });
 

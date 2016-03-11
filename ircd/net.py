@@ -49,6 +49,9 @@ class Client(object):
         start = time.time()
         try:
             for msg in self.transport.read():
+
+                log.debug("read: %s", msg)
+
                 elapsed = time.time() - start
                 if elapsed > IDENT_TIMEOUT and not self.has_identity:
                     log.error("client ident timeout: %s", self.host)
@@ -73,6 +76,7 @@ class Client(object):
 
             if msg and self.transport:
                 try:
+                    log.debug("wrie: %s", msg)
                     self.transport.write(msg)
                 except TransportError as e:
                     log.error("error writing from client: %s", e)
