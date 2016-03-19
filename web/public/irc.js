@@ -243,13 +243,13 @@
 
         var app = new ClientView({
             client: client,
-            el: $('#container')
+            el: $('.main')
         }).render();
     }
 
     function showConnect() {
         var view = new ConnectView({
-            el: $('#container')
+            el: $('.main')
         }).render();
 
         view.on("connect", function(nick, host) {

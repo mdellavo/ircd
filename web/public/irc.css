@@ -1,18 +1,30 @@
-html {
-  height: 100%;
+html, body, .viewport {
+    width: 100%;
+    height: 100%;
+    margin: 0;
 }
 
 body {
-    min-height: 100%;
     font-family: 'Inconsolata', monospace;
     color: #eee;
     background: #222;
 }
 
-#container {
-    width: 100%;
-    height: 100%;
+.vbox {
+    display: flex;
+    flex-direction: column;
 }
+
+.hbox {
+    display: flex;
+    flex-direction: row;
+}
+
+.main {
+    flex: 1;
+    justify-content: center;
+}
+
 
 .connect-dialog {
     display: flex;
@@ -39,17 +51,24 @@ body {
     float: right;
 }
 
-.client-view .main {
+.client-view {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
 }
 
 .client-view .nav {
     width: 200px;
+    text-align: center;
 }
 
 .client-view .content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.client-view .content {
     flex: 1;
 }
 
@@ -58,6 +77,13 @@ body {
     text-decoration: none;
 }
 
-#input {
+.client-view .content-footer {
+    align-self: baseline;
     width: 100%;
+}
+
+.client-view .content-footer #input {
+    width: 100%;
+     padding: 10px;
+    font-size: 18pt;
 }

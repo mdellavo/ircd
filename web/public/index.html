@@ -7,9 +7,9 @@
     <script src="assets/underscore/underscore-min.js"></script>
     <script src="assets/backbone/backbone-min.js"></script>
 </head>
-<body>
+<body class="vbox viewport">
 
-<div id="container">
+<div class="main hbox">
 </div>
 
 <script id="connect-view" type="text/template">
@@ -33,13 +33,13 @@
 
 <script id="client-view" type="text/template">
 <div class="client-view">
-    <div class="main">
-        <nav class="nav">
-        </nav>
-        <div class="content-wrapper">
-            <div class="content">
-            </div>
-            <br/>
+    <nav class="nav">
+    </nav>
+    <div class="content-wrapper">
+        <div class="content">
+        </div>
+        <div class="content-footer">
+
             <input type="text" id="input"/>
         </div>
     </div>
