@@ -55,6 +55,7 @@ body {
     display: flex;
     align-items: stretch;
     justify-content: center;
+    width: 100%;
 }
 
 .client-view .nav {
@@ -70,6 +71,7 @@ body {
 
 .client-view .content {
     flex: 1;
+    width: 100%;
 }
 
 .client-view .nav a {
@@ -84,6 +86,13 @@ body {
 
 .client-view .content-footer #input {
     width: 100%;
-     padding: 10px;
     font-size: 18pt;
+    background: transparent;
+    color: white;
+    border: none
 }
+
+.client-view .content-footer #input:focus {
+    outline: none;
+}
+
