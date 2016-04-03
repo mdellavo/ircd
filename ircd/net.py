@@ -19,12 +19,23 @@ class Client(object):
         self.irc = irc
         self.transport = transport
 
-        self.nickname = None
+        self.server = False
+        self.name = None
+
+        # fields if server
+        self.hopcount = None
+        self.token = None
+        self.info = None
+
+        # fields if user
         self.user = None
         self.realname = None
 
         self.outgoing = Queue()
         self.ping_count = 0
+
+    def get_name(self):
+        return self.name
 
     @property
     def host(self):
@@ -32,7 +43,7 @@ class Client(object):
 
     @property
     def identity(self):
-        parts = [self.nickname or "(unknown)"]
+        parts = [self.name or "(unknown)"]
         if self.user:
             parts.append("!")
             parts.append(self.user)
@@ -92,10 +103,13 @@ class Client(object):
                     break
 
     def set_nickname(self, nickname):
-        self.nickname = nickname
+        self.name = nickname
 
     def set_identity(self, user, realname):
         self.user, self.realname = user, realname
+
+    def set_server(self):
+        self.server = True
 
     def send(self, msg):
         self.outgoing.put(msg)
@@ -109,7 +123,7 @@ class Client(object):
 
     @property
     def has_nickname(self):
-        return bool(self.nickname)
+        return bool(self.name)
 
     @property
     def has_identity(self):

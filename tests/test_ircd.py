@@ -46,7 +46,7 @@ class TestIRC(TestCase):
             ":localhost 003 {} :This server was created {}".format(nick, self.irc.created),
             ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION)
         ])
-        self.assertEqual(client.nickname, nick)
+        self.assertEqual(client.name, nick)
         self.assertEqual(client.user, nick)
         self.assertEqual(client.realname, nick)
         self.assertEqual(client.host, "localhost")
@@ -60,15 +60,15 @@ class TestIRC(TestCase):
 
         channel = self.irc.get_channel(channel_name)
         self.assertTrue(channel)
-        nickname = self.irc.get_nickname(client.nickname)
+        nickname = self.irc.get_nickname(client.name)
         self.assertIn(nickname, channel.members)
 
         members = sorted([member.nickname for member in channel.members])
         self.assertReplies(client, [
             ":{} JOIN :{}".format(client.identity, channel_name),
-            ":localhost 331 {} :{}".format(client.nickname, channel_name),
-            ":localhost 353 {} = {} :{}".format(client.nickname, channel_name, " ".join(members)),
-            ":localhost 355 {} {} :End of /NAMES list.".format(client.nickname, channel_name),
+            ":localhost 331 {} :{}".format(client.name, channel_name),
+            ":localhost 353 {} = {} :{}".format(client.name, channel_name, " ".join(members)),
+            ":localhost 355 {} {} :End of /NAMES list.".format(client.name, channel_name),
         ])
 
     def part(self, client, chan, message=None):
@@ -92,7 +92,7 @@ class TestIRC(TestCase):
 
         channel = self.irc.get_channel(chan)
         self.assertTrue(channel)
-        nickname = self.irc.get_nickname(client.nickname)
+        nickname = self.irc.get_nickname(client.name)
         self.assertNotIn(nickname, channel.members)
 
     def test_ident(self):
@@ -107,7 +107,7 @@ class TestIRC(TestCase):
         self.ident(self.get_client(), "foo")
         client = self.irc.clients["foo"]
 
-        self.assertEqual(client.nickname, "foo")
+        self.assertEqual(client.name, "foo")
         self.assertIn("foo", self.irc.nicknames)
 
         self.process(client, [
@@ -119,7 +119,7 @@ class TestIRC(TestCase):
         ])
 
         self.assertNotIn("foo", self.irc.nicknames)
-        self.assertEqual(client.nickname, "bar")
+        self.assertEqual(client.name, "bar")
         self.assertIn("bar", self.irc.nicknames)
 
     def test_join_part(self):
@@ -133,7 +133,7 @@ class TestIRC(TestCase):
         self.assertEqual([member.nickname for member in channel.members], ["foo"])
         self.assertEqual(channel.owner.nickname, "foo")
 
-        nickname = self.irc.get_nickname(client.nickname)
+        nickname = self.irc.get_nickname(client.name)
         self.assertEqual([chan.name for chan in nickname.channels], ["#"])
 
         self.part(client, "#", message="byebye")
@@ -317,7 +317,7 @@ class TestIRC(TestCase):
             ":foo!foo@localhost MODE # +o :bar"
         ])
 
-        nickname = self.irc.get_nickname(client_b.nickname)
+        nickname = self.irc.get_nickname(client_b.name)
         self.assertIn(nickname, channel.operators)
 
         self.process(client_a, [
@@ -587,7 +587,7 @@ class TestIRC(TestCase):
             ":foo!foo@localhost 306 :You have been marked as being away"
         ])
 
-        nickname = self.irc.get_nickname(client_a.nickname)
+        nickname = self.irc.get_nickname(client_a.name)
         self.assertTrue(nickname.is_away)
         self.assertEqual(nickname.away_message, "gone fishin")
 
