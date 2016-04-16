@@ -4,7 +4,7 @@ import logging
 import socket
 from Queue import Queue, Empty
 
-from ircd.message import parsemsg, TERMINATOR
+from ircd.message import parsemsg, TERMINATOR, Prefix
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class Client(object):
         self.name = None
 
         # fields if server
-        self.hopcount = None
+        self.hop_count = None
         self.token = None
         self.info = None
 
@@ -43,14 +43,8 @@ class Client(object):
 
     @property
     def identity(self):
-        parts = [self.name or "(unknown)"]
-        if self.user:
-            parts.append("!")
-            parts.append(self.user)
-        parts.append("@")
-        if self.host:
-            parts.append(self.host)
-        return "".join(parts)
+        prefix = Prefix(self.host) if self.server else Prefix.from_parts(self.name, self.user, self.host)
+        return str(prefix)
 
     @property
     def is_connected(self):
@@ -108,8 +102,12 @@ class Client(object):
     def set_identity(self, user, realname):
         self.user, self.realname = user, realname
 
-    def set_server(self):
+    def set_server(self, name, hop_count, token, info):
         self.server = True
+        self.name = name
+        self.hop_count = hop_count
+        self.token = token
+        self.info = info
 
     def send(self, msg):
         self.outgoing.put(msg)

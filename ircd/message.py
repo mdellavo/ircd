@@ -28,8 +28,6 @@ class Prefix(object):
     def __init__(self, prefix):
         self.prefix = prefix
 
-        self.name = None
-
         self.nickname = None
         self.user = None
         self.host = None
@@ -41,25 +39,27 @@ class Prefix(object):
             else:
                 self.nickname, self.host = prefix.split("@", 1)
         else:
-            self.name = prefix
+            self.host = prefix
 
     def __str__(self):
         return self.prefix
 
-    def to_dict(self):
-        if self.name:
-            return {"name": self.name}
+    @classmethod
+    def from_parts(cls, nickname, user, host):
+        return cls(u"{}!{}@{}".format(nickname, user, host))
 
-        return {
-            "nick": self.nickname,
-            "user": self.user,
-            "host": self.host,
-        }
+    def to_dict(self):
+        rv = {"host": self.host}
+        if self.nickname:
+            rv["nick"] = self.nickname
+        if self.user:
+            rv["user"] = self.user
+        return rv
 
 
 class IRCMessage(object):
     def __init__(self, prefix, command, *args):
-        self.prefix = Prefix(prefix) if prefix else None
+        self.prefix = prefix
         self.command = command
         self.args = [args for args in args if args]
 

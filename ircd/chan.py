@@ -114,5 +114,5 @@ class Channel(object):
         self._remove_mask(mask, self.exceptions)
 
     def is_banned(self, identity):
-        has_match = lambda collection: any(mask.match(identity) for mask in collection)
+        has_match = lambda collection: any(mask.match(str(identity)) for mask in collection)
         return has_match(self.bans) and not has_match(self.exceptions)

@@ -610,4 +610,18 @@ class TestIRC(TestCase):
             ":foo!foo@localhost 305 :You are no longer marked as being away"
         ])
 
+    def test_server(self):
+        client = self.get_client()
 
+        self.process(client, [
+            "SERVER foo 0 abcdef hello"
+        ])
+
+        self.assertEqual(len(self.irc.links), 1)
+        self.assertIn(client, self.irc.links)
+
+        self.assertTrue(client.server)
+        self.assertEqual(client.name, "foo")
+        self.assertEqual(client.hop_count, "0")
+        self.assertEqual(client.token, "abcdef")
+        self.assertEqual(client.info, "hello")
