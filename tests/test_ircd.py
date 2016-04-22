@@ -30,6 +30,10 @@ class TestIRC(TestCase):
         while not client.outgoing.empty() and len(replies) < len(values):
             replies.append(client.outgoing.get(block=False))
 
+        for reply in replies:
+            print reply.format()
+        print
+
         self.assertEqual(len(replies), len(values))
         for reply, value in zip(replies, values):
             self.assertEqual(reply.format(), value)
@@ -98,14 +102,15 @@ class TestIRC(TestCase):
     def test_ident(self):
         self.ident(self.get_client(), "foo")
 
-        self.assertIn("foo", self.irc.clients)
-        client = self.irc.clients["foo"]
+        self.assertIn("foo", self.irc.nick_client)
+        self.assertIn("foo", self.irc.nicknames)
+        client = self.irc.lookup_client("foo")
         self.assertTrue(client.has_identity)
         self.assertTrue(client.has_nickname)
 
     def test_nick(self):
         self.ident(self.get_client(), "foo")
-        client = self.irc.clients["foo"]
+        client = self.irc.lookup_client("foo")
 
         self.assertEqual(client.name, "foo")
         self.assertIn("foo", self.irc.nicknames)

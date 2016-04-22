@@ -29,6 +29,8 @@ class IRC(object):
         self.channels = {}
         self.nicknames = {}
 
+        self.nick_client = {}
+
     def add_link(self, client, name, hop_count, token, info):
         client.set_server(name, hop_count, token, info)
         if client not in self.links:
@@ -58,15 +60,15 @@ class IRC(object):
 
         return [channel for channel in self.channels.values() if include_channel(channel)]
 
-    def get_client(self, nickname):
-        return self.clients.get(nickname)
+    def get_client(self, identity):
+        return self.clients.get(identity)
 
     def set_client(self, client):
-        self.clients[client.get_name()] = client
+        self.clients[client.identity] = client
 
-    def remove_client(self, nickname):
-        if nickname in self.clients:
-            del self.clients[nickname]
+    def remove_client(self, identity):
+        if identity in self.clients:
+            del self.clients[identity]
 
     def get_nicknames(self):
         return self.nicknames.values()
@@ -76,6 +78,9 @@ class IRC(object):
 
     def get_nickname(self, nickname):
         return self.nicknames.get(nickname)
+
+    def lookup_client(self, nickname):
+        return self.nick_client.get(nickname)
 
     def process(self, client, msg):
         msg = IRCMessage(msg[0] or client.identity, msg[1], *msg[2])
@@ -91,8 +96,6 @@ class IRC(object):
         self.incoming.put((client, msg))
 
     def set_nick(self, client, new_nickname):
-        if client.get_name() == new_nickname:
-            return
 
         if self.has_nickname(new_nickname):
             raise IRCError(IRCMessage.error_nick_in_use(client.identity, new_nickname))
@@ -103,7 +106,6 @@ class IRC(object):
         msg = IRCMessage.nick(client.identity, new_nickname)
 
         client.set_nickname(new_nickname)
-        self.set_client(client)
 
         nickname = self.get_nickname(old) if old else None
         if nickname:
@@ -113,12 +115,13 @@ class IRC(object):
             nickname = Nickname(new_nickname)
 
         self.nicknames[nickname.nickname] = nickname
+        self.nick_client[nickname.nickname] = client
 
         if client.has_identity:
             client.send(msg)
 
             if old:
-                self.remove_client(old)
+                self.remove_client(old.identity)
 
             for channel_name in nickname.channels:
                 channel = self.get_channel(channel_name)
@@ -127,7 +130,7 @@ class IRC(object):
     def set_ident(self, client, user, realname):
 
         client.set_identity(user, realname)
-
+        self.set_client(client)
         log.info("%s connected", client.identity)
 
         client.send(IRCMessage.nick(client.identity, client.get_name()))
@@ -137,13 +140,16 @@ class IRC(object):
         client.send(IRCMessage.reply_myinfo(self.host, client.get_name(), SERVER_NAME, SERVER_VERSION))
 
     def drop_client(self, client, message=None):
-        if client.get_name():
-            self.remove_client(client.get_name())
+        if client.identity():
+            self.remove_client(client.identity)
         if client.is_connected:
             log.info("%s disconnected (%s)", client.identity, message or "none")
             client.disconnect()
         nickname = self.get_nickname(client.get_name())
         if nickname:
+            if nickname.nickname in self.nick_client:
+                del self.nick_client[nickname.nickname]
+
             for channel in nickname.channels:
                 self.send_to_channel(client, channel, IRCMessage.quit(client.identity, message), skip_self=True)
 
@@ -212,7 +218,7 @@ class IRC(object):
         for member in channel.members:
             if skip_self and member.nickname == client.get_name():
                 continue
-            member_client = self.clients.get(member.nickname)
+            member_client = self.lookup_client(member.nickname)
             if member_client:
                 member_client.send(msg)
 
@@ -224,7 +230,7 @@ class IRC(object):
         self.send_to_channel(client, channel, IRCMessage.private_message(client.identity, channel_name, text), skip_self=True)
 
     def send_private_message_to_client(self, client, nickname, text):
-        other = self.get_client(nickname)
+        other = self.lookup_client(nickname)
         if not other:
             raise IRCError(IRCMessage.error_no_such_nickname(client.identity, nickname))
 
@@ -283,10 +289,10 @@ class IRC(object):
         channel.invite(nickname)
         client.send(IRCMessage.reply_inviting(client.identity, channel, nickname))
 
-        other_client = self.get_client(nickname.nickname)
+        other_client = self.lookup_client(nickname.nickname)
         other_client.send(IRCMessage.invite(client.identity, nickname, channel))
 
     def kick(self, client, channel, nickname, comment=None):
         channel.kick(nickname)
-        other_client = self.get_client(nickname.nickname)
+        other_client = self.lookup_client(nickname.nickname)
         other_client.send(IRCMessage.kick(client.identity, channel, nickname, comment=comment))

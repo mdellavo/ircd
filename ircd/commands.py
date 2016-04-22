@@ -88,9 +88,9 @@ class Handler(object):
     def privmsg(self, msg):
         target = msg.args[0]
 
-        if target in self.irc.channels:
+        if self.irc.has_channel(target):
             self.irc.send_private_message_to_channel(self.client, target, msg.args[1])
-        elif target in self.irc.clients:
+        elif self.irc.has_nickname(target):
             self.irc.send_private_message_to_client(self.client, target, msg.args[1])
         else:
             self.client.send(IRCMessage.error_no_such_channel(self.client.identity, target))
@@ -101,9 +101,9 @@ class Handler(object):
         flags = msg.args[1]
         param = msg.args[2] if len(msg.args) > 2 else None
 
-        if target in self.irc.clients:
+        if self.irc.has_nickname(target):
             self.irc.set_user_mode(self.client, target, flags)
-        elif target in self.irc.channels:
+        elif self.irc.has_channel(target):
             self.irc.set_channel_mode(self.client, target, flags, param=param)
 
     @validate(identity=True, num_params=1)
