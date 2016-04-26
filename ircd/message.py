@@ -215,7 +215,7 @@ class IRCMessage(object):
 
     @classmethod
     def ping(cls, server):
-        return cls(None, "PING", server)
+        return cls(server, "PING", server)
 
     @classmethod
     def mode(cls, prefix, target, flags, params=None):
