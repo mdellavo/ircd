@@ -17,7 +17,7 @@ def validate(nickname=False, identity=False, num_params=None):
                 return None
 
             if num_params is not None and len(msg.args) < num_params:
-                raise IRCError(IRCMessage.error_needs_more_params(self.client.identity, msg.command))
+                raise IRCError(IRCMessage.error_needs_more_params(self.irc.host, msg.command))
 
             return func(self, msg)
         return __validate
@@ -66,7 +66,7 @@ class Handler(object):
 
     @validate(identity=True, num_params=1)
     def ping(self, msg):
-        self.client.send(IRCMessage.reply_pong(self.irc.host, msg.args[0]))
+        self.client.send(IRCMessage.reply_pong(msg.prefix, msg.args[0]))
 
     def quit(self, msg):
         message = msg.args[0] if msg.args else "client quit"
@@ -93,7 +93,7 @@ class Handler(object):
         elif self.irc.has_nickname(target):
             self.irc.send_private_message_to_client(self.client, target, msg.args[1])
         else:
-            self.client.send(IRCMessage.error_no_such_channel(self.client.identity, target))
+            raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, target))
 
     @validate(identity=True, num_params=2)
     def mode(self, msg):
@@ -111,7 +111,7 @@ class Handler(object):
         channel_name = msg.args[0]
         channel = self.irc.get_channel(channel_name)
         if not channel:
-            raise IRCError(IRCMessage.error_no_such_channel(self.client.identity, channel_name))
+            raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, channel_name))
 
         if len(msg.args) > 1:
             self.irc.set_topic(self.client, channel, msg.args[1])
@@ -122,14 +122,14 @@ class Handler(object):
     def invite(self, msg):
         nickname = self.irc.get_nickname(msg.args[0])
         if not nickname:
-            raise IRCError(IRCMessage.error_no_such_nickname(self.client.identity, msg.args[0]))
+            raise IRCError(IRCMessage.error_no_such_nickname(self.irc.host, msg.args[0]))
 
         channel = self.irc.get_channel(msg.args[1])
         if not channel:
-            raise IRCError(IRCMessage.error_no_such_channel(self.client.identity, msg.args[1]))
+            raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, msg.args[1]))
 
         if not channel.is_operator(self.irc.get_nickname(self.client.get_name())):
-            raise IRCError(IRCMessage.error_channel_operator_needed(self.client.identity, msg.args[1]))
+            raise IRCError(IRCMessage.error_channel_operator_needed(self.irc.host, msg.args[1]))
 
         self.irc.invite(self.client, nickname, channel)
 
@@ -137,14 +137,14 @@ class Handler(object):
     def kick(self, msg):
         channel = self.irc.get_channel(msg.args[0])
         if not channel:
-            raise IRCError(IRCMessage.error_no_such_channel(self.client.identity, msg.args[0]))
+            raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, msg.args[0]))
 
         if not channel.is_operator(self.irc.get_nickname(self.client.get_name())):
-            raise IRCError(IRCMessage.error_channel_operator_needed(self.client.identity, msg.args[0]))
+            raise IRCError(IRCMessage.error_channel_operator_needed(self.irc.host, msg.args[0]))
 
         nickname = self.irc.get_nickname(msg.args[1])
         if not nickname:
-            raise IRCError(IRCMessage.error_no_such_nickname(self.client.identity, msg.args[1]))
+            raise IRCError(IRCMessage.error_no_such_nickname(self.irc.host, msg.args[1]))
 
         comment = msg.args[2] if len(msg.args) > 2 else None
         self.irc.kick(self.client, channel, nickname, comment=comment)
@@ -171,8 +171,8 @@ class Handler(object):
         nickname = self.irc.get_nickname(self.client.get_name())
         if message:
             nickname.set_away(message)
-            msg = IRCMessage.reply_nowaway(self.client.identity)
+            msg = IRCMessage.reply_nowaway(self.irc.host)
         else:
             nickname.clear_away()
-            msg = IRCMessage.reply_unaway(self.client.identity)
+            msg = IRCMessage.reply_unaway(self.irc.host)
         self.client.send(msg)
