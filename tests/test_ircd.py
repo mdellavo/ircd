@@ -70,9 +70,9 @@ class TestIRC(TestCase):
         members = sorted([member.nickname for member in channel.members])
         self.assertReplies(client, [
             ":{} JOIN :{}".format(client.identity, channel_name),
-            ":localhost 331 {} :{}".format(client.name, channel_name),
-            ":localhost 353 {} = {} :{}".format(client.name, channel_name, " ".join(members)),
-            ":localhost 355 {} {} :End of /NAMES list.".format(client.name, channel_name),
+            ":localhost 331 {} :{}".format(client.get_name(), channel_name),
+            ":localhost 353 {} = {} :{}".format(client.get_name(), channel_name, " ".join(members)),
+            ":localhost 366 {} {} :End of /NAMES list.".format(client.get_name(), channel_name),
         ])
 
     def part(self, client, chan, message=None):
@@ -382,7 +382,7 @@ class TestIRC(TestCase):
             "TOPIC # :hello world"
         ])
         self.assertReplies(client, [
-            ":localhost 332 # :hello world"
+            ":localhost 332 foo # :hello world"
         ])
         channel = self.irc.get_channel("#")
         self.assertEqual(channel.topic, "hello world")
@@ -391,7 +391,7 @@ class TestIRC(TestCase):
             "TOPIC #"
         ])
         self.assertReplies(client, [
-            ":localhost 332 # :hello world"
+            ":localhost 332 foo # :hello world"
         ])
 
     def test_invite(self):
@@ -552,7 +552,7 @@ class TestIRC(TestCase):
         ])
         self.assertReplies(client_a, [
             ":localhost 353 foo = # :bar foo",
-            ":localhost 355 foo # :End of /NAMES list."
+            ":localhost 366 foo # :End of /NAMES list."
         ])
 
     def test_list(self):

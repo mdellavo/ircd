@@ -143,7 +143,7 @@ class IRC(object):
         client.send(IRCMessage.reply_myinfo(self.host, client.get_name(), SERVER_NAME, SERVER_VERSION))
 
     def drop_client(self, client, message=None):
-        if client.identity():
+        if client.identity:
             self.remove_client(client.identity)
         if client.is_connected:
             log.info("%s disconnected (%s)", client.identity, message or "none")

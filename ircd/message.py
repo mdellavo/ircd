@@ -84,7 +84,7 @@ class IRCMessage(object):
                 parts.extend(head)
             tail = self.args[-1]
             if tail:
-                parts.append(":" + tail)
+                parts.append(":" + str(tail))
         rv = " ".join(parts)
         return rv
 
@@ -127,7 +127,7 @@ class IRCMessage(object):
 
     @classmethod
     def reply_topic(cls, prefix, target, channel):
-        return cls(prefix, "332", channel.name, channel.topic)
+        return cls(prefix, "332", target, channel.name, channel.topic)
 
     @classmethod
     def reply_inviting(cls, prefix, channel, nick):
@@ -140,7 +140,7 @@ class IRCMessage(object):
 
     @classmethod
     def reply_endnames(cls, prefix, target, channel):
-        return cls(prefix, "355", target, channel.name, "End of /NAMES list.")
+        return cls(prefix, "366", target, channel.name, "End of /NAMES list.")
 
     @classmethod
     def reply_list_start(cls, prefix):

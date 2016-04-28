@@ -55,8 +55,6 @@ class Client(object):
         try:
             for msg in self.transport.read():
 
-                log.debug("read: %s", msg)
-
                 elapsed = time.time() - start
                 if elapsed > IDENT_TIMEOUT and not self.has_identity:
                     log.error("client ident timeout: %s", self.host)
@@ -64,6 +62,7 @@ class Client(object):
                     break
 
                 if msg:
+                    log.debug("read: %s", msg)
                     self.irc.submit(self, msg)
 
         except TransportError as e:
