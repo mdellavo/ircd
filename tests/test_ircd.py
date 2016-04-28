@@ -166,7 +166,7 @@ class TestIRC(TestCase):
             "JOIN :#"
         ])
         self.assertReplies(client_b, [
-            ":localhost 475 :# :Cannot join channel (+k)"
+            ":localhost 475 bar :# :Cannot join channel (+k)"
         ])
 
         self.process(client_b, [
@@ -185,7 +185,7 @@ class TestIRC(TestCase):
             "PRIVMSG # :hello world"
         ])
         self.assertReplies(client_a, [
-            ":localhost 403 :# No such nick/channel"
+            ":localhost 403 foo :# No such nick/channel"
         ])
 
         self.join(client_a, "#")
@@ -213,7 +213,7 @@ class TestIRC(TestCase):
             "PRIVMSG # :hello world"
         ])
         self.assertReplies(client_a, [
-            ":localhost 441"
+            ":localhost 441 :foo"
         ])
 
     def test_privmsg_client(self):
@@ -275,7 +275,7 @@ class TestIRC(TestCase):
             "MODE # :+n"
         ])
         self.assertReplies(client_b, [
-            ":localhost 482 :# You're not channel operator"
+            ":localhost 482 bar :# You're not channel operator"
         ])
 
         self.process(client_a, [
@@ -346,7 +346,7 @@ class TestIRC(TestCase):
             "MODE # :+k"
         ])
         self.assertReplies(client, [
-            ":localhost 461 MODE :Not enough parameters"
+            ":localhost 461 foo MODE :Not enough parameters"
         ])
 
         self.process(client, [
@@ -419,14 +419,14 @@ class TestIRC(TestCase):
             "JOIN #"
         ])
         self.assertReplies(client_b, [
-            ":localhost 473 :# :Cannot join channel (+i)"
+            ":localhost 473 bar :# :Cannot join channel (+i)"
         ])
 
         self.process(client_a, [
             "INVITE bar #"
         ])
         self.assertReplies(client_a, [
-            ":localhost 341 # :bar"
+            ":localhost 341 foo # :bar"
         ])
 
         self.assertTrue(channel.can_join_channel(nick_b))
@@ -466,7 +466,7 @@ class TestIRC(TestCase):
             "JOIN #"
         ])
         self.assertReplies(client_b, [
-            ":localhost 474 :# :Cannot join channel (+b)"
+            ":localhost 474 bar :# :Cannot join channel (+b)"
         ])
 
         self.process(client_a, [
@@ -513,7 +513,7 @@ class TestIRC(TestCase):
             "INVITE bar #"
         ])
         self.assertReplies(client_a, [
-            ":localhost 341 # :bar"
+            ":localhost 341 foo # :bar"
         ])
 
         self.assertTrue(channel.can_join_channel(nick_b))
@@ -574,11 +574,11 @@ class TestIRC(TestCase):
             "LIST"
         ])
         self.assertReplies(client_a, [
-            ":localhost 321 Channel Users :Name",
-            ":localhost 322 #foo 2 :#foo#foo#foo",
-            ":localhost 322 #bar 2 :#bar#bar#bar",
-            ":localhost 322 #baz 2 :#baz#baz#baz",
-            ":localhost 323 :End of /LIST",
+            ":localhost 321 foo Channel Users :Name",
+            ":localhost 322 foo #foo 2 :#foo#foo#foo",
+            ":localhost 322 foo #bar 2 :#bar#bar#bar",
+            ":localhost 322 foo #baz 2 :#baz#baz#baz",
+            ":localhost 323 foo :End of /LIST",
         ])
 
     def test_away(self):
@@ -589,7 +589,7 @@ class TestIRC(TestCase):
         ])
 
         self.assertReplies(client_a, [
-            ":localhost 306 :You have been marked as being away"
+            ":localhost 306 foo :You have been marked as being away"
         ])
 
         nickname = self.irc.get_nickname(client_a.name)
@@ -604,7 +604,7 @@ class TestIRC(TestCase):
         ])
 
         self.assertReplies(client_b, [
-            ":foo!foo@localhost 301 foo :gone fishin"
+            ":foo!foo@localhost 301 bar foo :gone fishin"
         ])
 
         self.process(client_a, [
@@ -612,7 +612,7 @@ class TestIRC(TestCase):
         ])
 
         self.assertReplies(client_a, [
-            ":localhost 305 :You are no longer marked as being away"
+            ":localhost 305 foo :You are no longer marked as being away"
         ])
 
     def test_server(self):

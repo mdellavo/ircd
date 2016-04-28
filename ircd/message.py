@@ -110,16 +110,16 @@ class IRCMessage(object):
         return cls(prefix, "PONG", server)
 
     @classmethod
-    def reply_away(cls, prefix, nickname, message):
-        return cls(prefix, "301", nickname, message)
+    def reply_away(cls, prefix, target, nickname, message):
+        return cls(prefix, "301", target, nickname, message)
 
     @classmethod
-    def reply_unaway(cls, prefix):
-        return cls(prefix, "305", "You are no longer marked as being away")
+    def reply_unaway(cls, prefix, target):
+        return cls(prefix, "305", target, "You are no longer marked as being away")
 
     @classmethod
-    def reply_nowaway(cls, prefix):
-        return cls(prefix, "306", "You have been marked as being away")
+    def reply_nowaway(cls, prefix, target):
+        return cls(prefix, "306", target, "You have been marked as being away")
 
     @classmethod
     def reply_notopic(cls, prefix, target, channel):
@@ -130,8 +130,8 @@ class IRCMessage(object):
         return cls(prefix, "332", target, channel.name, channel.topic)
 
     @classmethod
-    def reply_inviting(cls, prefix, channel, nick):
-        return cls(prefix, "341", channel.name, nick.nickname)
+    def reply_inviting(cls, prefix, target, channel, nick):
+        return cls(prefix, "341", target, channel.name, nick.nickname)
 
     @classmethod
     def reply_names(cls, prefix, target, channel):
@@ -143,56 +143,56 @@ class IRCMessage(object):
         return cls(prefix, "366", target, channel.name, "End of /NAMES list.")
 
     @classmethod
-    def reply_list_start(cls, prefix):
-        return cls(prefix, "321", "Channel", "Users", "Name")
+    def reply_list_start(cls, prefix, target):
+        return cls(prefix, "321", target, "Channel", "Users", "Name")
 
     @classmethod
-    def reply_list(cls, prefix, channel):
-        return cls(prefix, "322", channel.name, str(len(channel.members)), "(private)" if channel.is_private else channel.topic)
+    def reply_list(cls, prefix, target, channel):
+        return cls(prefix, "322", target, channel.name, str(len(channel.members)), "(private)" if channel.is_private else channel.topic)
 
     @classmethod
-    def reply_list_end(cls, prefix):
-        return cls(prefix, "323", "End of /LIST")
+    def reply_list_end(cls, prefix, target):
+        return cls(prefix, "323", target, "End of /LIST")
 
     @classmethod
-    def error_nick_in_use(cls, prefix, nickname):
-        return cls(prefix, "433", nickname)
+    def error_nick_in_use(cls, prefix, target, nickname):
+        return cls(prefix, "433", target, nickname)
 
     @classmethod
-    def error_not_in_channel(cls, prefix):
-        return cls(prefix, "441")
+    def error_not_in_channel(cls, prefix, target):
+        return cls(prefix, "441", target)
 
     @classmethod
-    def error_no_such_channel(cls, prefix, name):
-        return cls(prefix, "403", "{channel} No such nick/channel".format(channel=name))
+    def error_no_such_channel(cls, prefix, target, name):
+        return cls(prefix, "403", target, "{channel} No such nick/channel".format(channel=name))
 
     @classmethod
-    def error_no_such_nickname(cls, prefix, name):
-        return cls(prefix, "401", "{nickname} No such nick/channel".format(nickname=name))
+    def error_no_such_nickname(cls, prefix, target, name):
+        return cls(prefix, "401", target, "{nickname} No such nick/channel".format(nickname=name))
 
     @classmethod
-    def error_needs_more_params(cls, prefix, command):
-        return cls(prefix, "461", command, "Not enough parameters")
+    def error_needs_more_params(cls, prefix, target, command):
+        return cls(prefix, "461", target, command, "Not enough parameters")
 
     @classmethod
-    def error_invite_only_channel(cls, prefix, channel):
-        return cls(prefix, "473", "{channel} :Cannot join channel (+i)".format(channel=channel))
+    def error_invite_only_channel(cls, prefix, target, channel):
+        return cls(prefix, "473", target, "{channel} :Cannot join channel (+i)".format(channel=channel))
 
     @classmethod
-    def error_banned_from_channel(cls, prefix, channel):
-        return cls(prefix, "474", "{channel} :Cannot join channel (+b)".format(channel=channel))
+    def error_banned_from_channel(cls, prefix, target, channel):
+        return cls(prefix, "474", target, "{channel} :Cannot join channel (+b)".format(channel=channel))
 
     @classmethod
-    def error_bad_channel_key(cls, prefix, channel):
-        return cls(prefix, "475", "{channel} :Cannot join channel (+k)".format(channel=channel))
+    def error_bad_channel_key(cls, prefix, target, channel):
+        return cls(prefix, "475", target, "{channel} :Cannot join channel (+k)".format(channel=channel))
 
     @classmethod
-    def error_channel_operator_needed(cls, prefix, name):
-        return cls(prefix, "482", "{channel} You're not channel operator".format(channel=name))
+    def error_channel_operator_needed(cls, prefix, target, name):
+        return cls(prefix, "482", target, "{channel} You're not channel operator".format(channel=name))
 
     @classmethod
-    def error_users_dont_match(cls, prefix):
-        return cls(prefix, "502", "Cant change mode for other users")
+    def error_users_dont_match(cls, prefix, target):
+        return cls(prefix, "502", target, "Cant change mode for other users")
 
     @classmethod
     def nick(cls, prefix, nickname):
