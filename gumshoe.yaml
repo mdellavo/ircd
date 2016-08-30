@@ -1,2 +1,4 @@
-image: mdellavo/ircd
-
+docker-image: mdellavo/ircd
+build-command:
+test-command: nosetests /site/ircd/
+deploy-command: python /site/ircd/ircd.py
