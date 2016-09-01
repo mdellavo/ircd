@@ -95,16 +95,22 @@ class Handler(object):
         else:
             raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, self.client.get_name(), target))
 
-    @validate(identity=True, num_params=2)
+    @validate(identity=True, num_params=1)
     def mode(self, msg):
         target = msg.args[0]
-        flags = msg.args[1]
+        flags = msg.args[1] if len(msg.args) > 1 else None
         param = msg.args[2] if len(msg.args) > 2 else None
 
         if self.irc.has_nickname(target):
-            self.irc.set_user_mode(self.client, target, flags)
+            if flags:
+                self.irc.set_user_mode(self.client, target, flags)
+            else:
+                self.irc.send_user_mode(self.client, target)
         elif self.irc.has_channel(target):
-            self.irc.set_channel_mode(self.client, target, flags, param=param)
+            if flags:
+                self.irc.set_channel_mode(self.client, target, flags, param=param)
+            else:
+                self.irc.send_channel_mode(self.client, target)
 
     @validate(identity=True, num_params=1)
     def topic(self, msg):

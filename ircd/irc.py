@@ -178,7 +178,6 @@ class IRC(object):
             return
 
         self.send_to_channel(client, channel, IRCMessage.join(client.identity, name))
-
         self.send_topic(client, channel)
         self.send_names(client, channel)
 
@@ -246,6 +245,12 @@ class IRC(object):
     def ping(self, client):
         client.send(IRCMessage.ping(self.host))
 
+    def send_channel_mode(self, client, chan_name):
+        channel = self.get_channel(chan_name)
+        if not channel:
+            raise IRCError(IRCMessage.error_no_such_nickname(self.host, client.get_name(), chan_name))
+        client.send(IRCMessage.reply_channel_mode_is(self.host, client.get_name(), channel.name, str(channel.mode)))
+
     def set_channel_mode(self, client, target, flags, param=None):
         channel = self.get_channel(target)
         nickname = self.get_nickname(client.get_name())
@@ -265,6 +270,12 @@ class IRC(object):
 
         if modified:
             self.send_to_channel(client, channel, IRCMessage.mode(client.identity, target, op + flags, param))
+
+    def send_user_mode(self, client, nick):
+        nickname = self.get_nickname(nick)
+        if not nickname:
+            raise IRCError(IRCMessage.error_no_such_nickname(self.host, client.get_name(), nickname))
+        client.send(IRCMessage.reply_user_mode_is(self.host, client.get_name(), nickname.mode))
 
     def set_user_mode(self, client, target, flags):
         op, flags = flags[0], flags[1:]

@@ -210,7 +210,7 @@ class Mode(object):
         return cls(flags)
 
     def __str__(self):
-        return sorted(self.mode)
+        return self.mode
 
     @property
     def mode(self):

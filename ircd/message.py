@@ -110,6 +110,14 @@ class IRCMessage(object):
         return cls(prefix, "PONG", server)
 
     @classmethod
+    def reply_user_mode_is(cls, prefix, target, mode):
+        return cls(prefix, "221", target, "+" + str(mode))
+
+    @classmethod
+    def reply_channel_mode_is(cls, prefix, target, channel, mode, params=None):
+        return cls(prefix, "324", target, channel, "+" + str(mode), params or "")
+
+    @classmethod
     def reply_away(cls, prefix, target, nickname, message):
         return cls(prefix, "301", target, nickname, message)
 
