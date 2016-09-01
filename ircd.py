@@ -44,6 +44,7 @@ def main(args):
     gevent.spawn(http_worker, irc)
 
     cert_file = args[0] if len(args) > 0 else CERT_FILE
+    log.info("loading cert %s", cert_file)
     server = AsyncServer(irc, ADDRESS, cert_file)
     server.serve()
 
