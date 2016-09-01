@@ -7,4 +7,4 @@ test:
 release:
   command:
 deploy:
-  command: /usr/bin/python /site/ircd/ircd.py
+  command: /usr/bin/python /site/ircd/ircd.py /site/cert.pem
