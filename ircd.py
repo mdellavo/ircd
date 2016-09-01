@@ -1,6 +1,7 @@
 from gevent import monkey
 monkey.patch_all()
 
+import sys
 import logging
 import socket
 
@@ -11,7 +12,7 @@ from httpd import http_worker
 
 PORT = 9999
 ADDRESS = "0.0.0.0", PORT
-KEY_FILE = "key.pem"
+CERT_FILE = "cert.pem"
 SOCKET_TIMEOUT = 10
 
 log = logging.getLogger("ircd")
@@ -31,7 +32,7 @@ class AsyncServer(Server):
         gevent.spawn(client.writer)
 
 
-def main():
+def main(args):
     logging.basicConfig(level=logging.DEBUG,
                         datefmt="%Y-%m-%dT%H:%M:%S",
                         format="[%(asctime)s] %(name)s(%(levelname)s) %(message)s")
@@ -42,12 +43,13 @@ def main():
     gevent.spawn(irc.processor)
     gevent.spawn(http_worker, irc)
 
-    server = AsyncServer(irc, ADDRESS, KEY_FILE)
+    cert_file = args[0] if len(args) > 0 else CERT_FILE
+    server = AsyncServer(irc, ADDRESS, cert_file)
     server.serve()
 
 
 if __name__ == "__main__":
     try:
-        main()
+        main(sys.argv[1:])
     except KeyboardInterrupt:
         pass
