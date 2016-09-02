@@ -1,6 +1,6 @@
 container:
   image: mdellavo/ircd
-  repo-volume: /site/ircd:w
+  repo-volume: /site/ircd
 build:
   command:
 test:
