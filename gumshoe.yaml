@@ -1,5 +1,6 @@
-docker:
+container:
   image: mdellavo/ircd
+  repo-volume: /site/ircd:w
 build:
   command:
 test:
