@@ -1,11 +1,12 @@
 container:
   image: mdellavo/ircd
   repo-volume: /site/ircd
-build:
-  command:
-test:
-  command: /usr/local/bin/nosetests -v /site/ircd/
-release:
-  command:
-deploy:
-  command: /usr/bin/python /site/ircd/ircd.py /site/cert.pem
+commands:
+  build:
+    command:
+  test:
+    command: /usr/local/bin/nosetests -v /site/ircd/
+  release:
+    command:
+  deploy:
+    command: /usr/bin/python /site/ircd/ircd.py /site/cert.pem
