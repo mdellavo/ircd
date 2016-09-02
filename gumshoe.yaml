@@ -4,7 +4,7 @@ container:
 build:
   command:
 test:
-  command: /usr/bin/nosetests /site/ircd/
+  command: /usr/bin/nosetests -v /site/ircd/
 release:
   command:
 deploy:
