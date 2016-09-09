@@ -1,6 +1,7 @@
 container:
   image: mdellavo/ircd
   repo-volume: /site/ircd
+  ports: [9999]
 commands:
   build:
     command:
