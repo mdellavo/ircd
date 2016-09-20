@@ -1,7 +1,7 @@
-container:
-  image: mdellavo/ircd
-  repo-volume: /site/ircd
-  ports: [9999]
+containers:
+  default:
+    image: mdellavo/ircd
+    repo-path: /site/ircd
 commands:
   build:
     command:
@@ -11,3 +11,5 @@ commands:
     command:
   deploy:
     command: /usr/bin/python /site/ircd/ircd.py /site/cert.pem
+    ports: [9999]
+
