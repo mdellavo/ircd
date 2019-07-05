@@ -24,7 +24,7 @@ class TestIRC(TestCase):
     def assertReplies(self, client, values):
         replies = []
         while not client.outgoing.empty() and len(replies) < len(values):
-            replies.append(client.outgoing.get(block=False))
+            replies.append(client.outgoing.get_nowait())
 
         for reply in replies:
             print(reply.format())

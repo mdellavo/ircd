@@ -2,8 +2,6 @@ import sys
 import time
 import asyncio
 import logging
-import socket
-import queue
 
 from .irc import IRC
 from .net import Client
