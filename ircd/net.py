@@ -12,7 +12,7 @@ BACKLOG = 10
 class Client(object):
     def __init__(self, address, host):
         self.address = address
-        self.host = host
+        self.host = host or address
 
         self.name = None
         self.connected_at = time.time()
@@ -31,6 +31,9 @@ class Client(object):
 
         self.outgoing = asyncio.Queue()
         self.ping_count = 0
+
+    def __str__(self):
+        return "<Client({})>".format(self.host)
 
     @property
     def identity(self):

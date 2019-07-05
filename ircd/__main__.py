@@ -2,15 +2,20 @@ import sys
 import time
 import asyncio
 import logging
+import argparse
 
 from .irc import IRC
 from .net import Client
 from .message import parsemsg, TERMINATOR
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='[%(asctime)s] %(name)s - %(levelname)s - %(message)s',
+)
 
 log = logging.getLogger("ircd.main")
 
+LISTEN_ADDRESS, LISTEN_PORT = "127.0.0.1", 8888
 PING_INTERVAL = 60
 PING_GRACE = 5
 IDENT_TIMEOUT = 10
@@ -18,7 +23,6 @@ IDENT_TIMEOUT = 10
 
 async def main(args):
     host = "localhost"
-    listen_address, listen_port = "127.0.0.1", 8888
 
     irc = IRC(host)
     incoming = asyncio.Queue()
@@ -68,21 +72,30 @@ async def main(args):
         while running:
             client, message = await incoming.get()
             log.info("processing message from %s: %s", client, message)
-            irc.process(client, message)
+            try:
+                irc.process(client, message)
+            except Exception as e:
+                log.exception("error processing message from %s - %s - %s", client, message, str(e))
 
     asyncio.create_task(_irc_processor())
 
     def _start_client(reader, writer):
         asyncio.create_task(_on_client_connected(reader, writer))
 
-    server = await asyncio.start_server(_start_client, listen_address, listen_port)
-    log.info("serving on %s:%s", listen_address, listen_port)
+    server = await asyncio.start_server(_start_client, args.listen_address, args.listen_port)
+    log.info("serving on %s:%s", args.listen_address, args.listen_port)
     async with server:
         await server.serve_forever()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="irc server")
+    parser.add_argument("--listen_address", help="listen address", default=LISTEN_ADDRESS)
+    parser.add_argument("--listen_port", help="listen port", default=LISTEN_PORT, type=int)
+    parser.add_argument("--verbose", help="verbose mode", action="store_true")
+    args = parser.parse_args(sys.argv[1:])
+
     try:
-        asyncio.run(main(sys.argv[1:]), debug=True)
+        asyncio.run(main(args), debug=args.verbose)
     except KeyboardInterrupt:
         log.info("shutting down")
