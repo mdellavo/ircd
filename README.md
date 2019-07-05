@@ -1,7 +1,8 @@
 # IRCd
 
-a small IRCd in python
+[![Build Status](https://travis-ci.org/mdellavo/ircd.svg?branch=master)](https://travis-ci.org/mdellavo/ircd)
 
+a small IRCd in python
 
 ## Author
 
