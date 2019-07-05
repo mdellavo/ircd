@@ -1,7 +1,8 @@
 from unittest import TestCase
 
 from ircd import IRC
-from ircd.net import parsemsg, Client
+from ircd.net import Client
+from ircd.message import parsemsg
 from ircd.irc import SERVER_NAME, SERVER_VERSION
 
 
@@ -10,7 +11,7 @@ class TestIRC(TestCase):
         self.irc = IRC("localhost")
 
     def get_client(self):
-        return Client(self.irc, MockTransport())
+        return Client("127.0.0.1", "localhost")
 
     def process(self, client, messages):
         """
@@ -18,7 +19,7 @@ class TestIRC(TestCase):
         """
 
         for message in messages:
-            client.irc.process(client, parsemsg(message))
+            self.irc.process(client, parsemsg(message))
 
     def assertReplies(self, client, values):
         replies = []
@@ -65,9 +66,9 @@ class TestIRC(TestCase):
         members = sorted([member.nickname for member in channel.members])
         self.assertReplies(client, [
             ":{} JOIN :{}".format(client.identity, channel_name),
-            ":localhost 331 {} :{}".format(client.get_name(), channel_name),
-            ":localhost 353 {} = {} :{}".format(client.get_name(), channel_name, " ".join(members)),
-            ":localhost 366 {} {} :End of /NAMES list.".format(client.get_name(), channel_name),
+            ":localhost 331 {} :{}".format(client.name, channel_name),
+            ":localhost 353 {} = {} :{}".format(client.name, channel_name, " ".join(members)),
+            ":localhost 366 {} {} :End of /NAMES list.".format(client.name, channel_name),
         ])
 
     def part(self, client, chan, message=None):
