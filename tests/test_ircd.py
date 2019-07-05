@@ -1,13 +1,8 @@
 from unittest import TestCase
 
-from ircd import IRC, Transport
+from ircd import IRC
 from ircd.net import parsemsg, Client
 from ircd.irc import SERVER_NAME, SERVER_VERSION
-
-
-class MockTransport(Transport):
-    def __init__(self):
-        self.host = "localhost"
 
 
 class TestIRC(TestCase):
@@ -31,8 +26,8 @@ class TestIRC(TestCase):
             replies.append(client.outgoing.get(block=False))
 
         for reply in replies:
-            print reply.format()
-        print
+            print(reply.format())
+        print()
 
         self.assertEqual(len(replies), len(values))
         for reply, value in zip(replies, values):
@@ -473,7 +468,6 @@ class TestIRC(TestCase):
             "MODE # +e *!*@localhost"
         ])
 
-        print channel.exceptions
         self.assertFalse(channel.is_banned(client_b.identity))
 
         self.process(client_a, [

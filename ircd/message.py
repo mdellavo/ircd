@@ -103,7 +103,7 @@ class IRCMessage(object):
 
     @classmethod
     def reply_myinfo(cls, prefix, target, name, verison):
-        return cls(prefix, "004", target, "{} {} {} {}".format(name, verison, string.letters, string.letters))
+        return cls(prefix, "004", target, "{} {} {} {}".format(name, verison, string.ascii_letters, string.ascii_letters))
 
     @classmethod
     def reply_pong(cls, prefix, server):

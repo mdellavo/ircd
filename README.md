@@ -2,17 +2,6 @@
 
 a small IRCd in python
 
-## Features
-  - gevent based
-  - ssl by default
-  - experimental http api, websocket transport and web client
-
-## ToDo
- - IRCv3
- - asyncio driver
- - Complete mode support (Ban masks, etc)
- - Server Links
- - Services
 
 ## Author
 

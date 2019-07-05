@@ -1,4 +1,3 @@
-from .net import Server, Client, Transport, TransportError, SocketTransport
 from .irc import IRC
 from .nick import Nickname
 from .chan import Channel
