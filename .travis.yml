@@ -1,1 +1,3 @@
-langauge: python
+language: python
+script:
+  - pytest
