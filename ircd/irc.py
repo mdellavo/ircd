@@ -118,8 +118,7 @@ class IRC(object):
             if old:
                 self.remove_client(old)
 
-            for channel_name in nickname.channels:
-                channel = self.get_channel(channel_name)
+            for channel in nickname.channels:
                 self.send_to_channel(client, channel, msg, skip_self=True)
 
     def set_ident(self, client, user, realname):

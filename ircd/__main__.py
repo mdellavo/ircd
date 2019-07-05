@@ -27,11 +27,11 @@ async def main(args):
 
     async def _on_client_connected(reader, writer):
         client_address, client_port = writer.get_extra_info('peername')
-        client_host = socket.getfqdn(client_address)
+        client_host, _ = await asyncio.get_event_loop().getnameinfo((client_address, client_port))
         log.info("connection from %s (%s)", client_address, client_host)
         client = Client(client_address, client_host)
-        asyncio.create_task(_client_writer(client, writer))
 
+        start_writer = False
         quit_message = "goodbye"
         while client.connected:
             line = (await reader.readuntil(TERMINATOR.encode())).strip()
@@ -46,6 +46,9 @@ async def main(args):
                 message = parsemsg(line.decode())
                 log.debug("read from %s: %s", client_address, message)
                 await incoming.put((client, message))
+                if not start_writer:
+                    asyncio.create_task(_client_writer(client, writer))
+                    start_writer = True
 
         reader.close()
         irc.drop_client(client, message=quit_message)
@@ -53,7 +56,7 @@ async def main(args):
 
     async def _client_writer(client, writer):
         while client.connected:
-            message = client.outgoing.get()
+            message = await client.outgoing.get()
             line = message.format() + TERMINATOR
             bytes = line.encode()
             log.debug("writing to %s: %s", client, bytes)
@@ -71,7 +74,10 @@ async def main(args):
 
     asyncio.create_task(_irc_processor())
 
-    server = await asyncio.start_server(_on_client_connected, listen_address, listen_port)
+    def _start_client(reader, writer):
+        asyncio.create_task(_on_client_connected(reader, writer))
+
+    server = await asyncio.start_server(_start_client, listen_address, listen_port)
     log.info("serving on %s:%s", listen_address, listen_port)
     async with server:
         await server.serve_forever()

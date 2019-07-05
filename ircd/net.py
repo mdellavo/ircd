@@ -1,6 +1,6 @@
 import time
+import asyncio
 import logging
-from queue import Queue, Empty
 
 from ircd.message import Prefix
 
@@ -29,7 +29,7 @@ class Client(object):
         self.user = None
         self.realname = None
 
-        self.outgoing = Queue()
+        self.outgoing = asyncio.Queue()
         self.ping_count = 0
 
     @property
@@ -77,7 +77,7 @@ class Client(object):
         self.info = info
 
     def send(self, msg):
-        self.outgoing.put(msg)
+        self.outgoing.put_nowait(msg)
 
     def disconnect(self):
         self.connected = False
