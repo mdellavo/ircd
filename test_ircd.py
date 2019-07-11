@@ -1,4 +1,4 @@
-from unittest import TestCase
+from unittest import TestCase, mock
 
 from ircd import IRC
 from ircd.net import Client
@@ -374,11 +374,14 @@ class TestIRC(TestCase):
         self.assertReplies(client, [
             ":localhost 331 foo :#"
         ])
-        self.process(client, [
-            "TOPIC # :hello world"
-        ])
+        with mock.patch("time.time") as time_patch:
+            time_patch.return_value = 1562815441
+            self.process(client, [
+                "TOPIC # :hello world"
+            ])
         self.assertReplies(client, [
-            ":localhost 332 foo # :hello world"
+            ":localhost 332 foo # :hello world",
+            ":localhost 333 foo # foo :1562815441",
         ])
         channel = self.irc.get_channel("#")
         self.assertEqual(channel.topic, "hello world")
@@ -387,7 +390,7 @@ class TestIRC(TestCase):
             "TOPIC #"
         ])
         self.assertReplies(client, [
-            ":localhost 332 foo # :hello world"
+            ":localhost 332 foo # :hello world",
         ])
 
     def test_invite(self):

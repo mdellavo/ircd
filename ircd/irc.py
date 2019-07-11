@@ -206,7 +206,6 @@ class IRC(object):
                 member_client.send(IRCMessage.reply_topic(self.host, member_client.name, channel))
                 member_client.send(IRCMessage.reply_topic_who_time(self.host, member_client.name, channel, nickname, time.time()))
 
-
     def part_channel(self, name, client, message=None):
         channel = self.get_channel(name)
         if not channel:
