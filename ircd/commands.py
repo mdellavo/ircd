@@ -11,7 +11,7 @@ def validate(nickname=False, identity=False, num_params=None):
     def _validate(func):
         @wraps(func)
         def __validate(self, msg):
-
+            # log.debug("validate: %s", msg)
             if (nickname and not self.client.has_nickname) or (identity and not self.client.has_identity):
                 self.irc.drop_client(self.client, "invalid")
                 return None
@@ -32,7 +32,7 @@ class Handler(object):
     def __call__(self, msg):
         handler = msg.command.lower()
 
-        #log.debug("dispatching: %s", handler)
+        log.debug("dispatching: %s", handler)
 
         callback = getattr(self, handler, None)
         if callback and callable(callback):
@@ -121,8 +121,8 @@ class Handler(object):
 
         if len(msg.args) > 1:
             self.irc.set_topic(self.client, channel, msg.args[1])
-
-        self.irc.send_topic(self.client, channel)
+        else:
+            self.irc.send_topic(self.client, channel)
 
     @validate(identity=True, num_params=2)
     def invite(self, msg):

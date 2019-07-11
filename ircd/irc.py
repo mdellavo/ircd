@@ -1,3 +1,4 @@
+import time
 import logging
 from queue import Queue
 from datetime import datetime
@@ -90,7 +91,6 @@ class IRC(object):
         handler(msg)
 
     def set_nick(self, client, new_nickname):
-
         if self.has_nickname(new_nickname):
             raise IRCError(IRCMessage.error_nick_in_use(self.host, client.name, new_nickname))
 
@@ -122,7 +122,6 @@ class IRC(object):
                 self.send_to_channel(client, channel, msg, skip_self=True)
 
     def set_ident(self, client, user, realname):
-
         client.set_identity(user, realname)
         self.set_client(client)
         log.info("%s connected", client.identity)
@@ -134,18 +133,24 @@ class IRC(object):
         client.send(IRCMessage.reply_myinfo(self.host, client.name, SERVER_NAME, SERVER_VERSION))
 
     def drop_client(self, client, message=None):
-        if client.identity:
-            self.remove_client(client.identity)
-        if client.connected:
-            log.info("%s disconnected (%s)", client.identity, message or "none")
-            client.disconnect()
+        if not client.connected:
+            return
+
+        log.info("%s disconnected (%s)", client.identity, message or "none")
+        client.disconnect()
+
         nickname = self.get_nickname(client.name)
+
+        for channel in nickname.channels:
+            self.send_to_channel(client, channel, IRCMessage.quit(client.identity, message), skip_self=True)
+
         if nickname:
             if nickname.nickname in self.nick_client:
                 del self.nick_client[nickname.nickname]
+            if nickname.nickname in self.nicknames:
+                del self.nicknames[nickname.nickname]
 
-            for channel in nickname.channels:
-                self.send_to_channel(client, channel, IRCMessage.quit(client.identity, message), skip_self=True)
+        self.remove_client(client.identity)
 
     def join_channel(self, name, client, key=None):
         nickname = self.get_nickname(client.name)
@@ -194,6 +199,13 @@ class IRC(object):
         nickname = self.get_nickname(client.name)
         if channel.is_operator(nickname) or channel.is_topic_open:
             channel.set_topic(topic)
+
+        for member in channel.members:
+            member_client = self.lookup_client(member.nickname)
+            if member_client:
+                member_client.send(IRCMessage.reply_topic(self.host, member_client.name, channel))
+                member_client.send(IRCMessage.reply_topic_who_time(self.host, member_client.name, channel, nickname, time.time()))
+
 
     def part_channel(self, name, client, message=None):
         channel = self.get_channel(name)

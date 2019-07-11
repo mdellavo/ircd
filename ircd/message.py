@@ -138,6 +138,10 @@ class IRCMessage(object):
         return cls(prefix, "332", target, channel.name, channel.topic)
 
     @classmethod
+    def reply_topic_who_time(cls, prefix, target, channel, nick, set_at):
+        return cls(prefix, "333", target, channel.name, nick.nickname, str(int(set_at)))
+
+    @classmethod
     def reply_inviting(cls, prefix, target, channel, nick):
         return cls(prefix, "341", target, channel.name, nick.nickname)
 

@@ -1,0 +1,7 @@
+version: "3"
+services:
+  node-a:
+    build: .
+    command:
+  node-b:
+    build: .

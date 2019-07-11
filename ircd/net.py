@@ -33,7 +33,7 @@ class Client(object):
         self.ping_count = 0
 
     def __str__(self):
-        return "<Client({})>".format(self.host)
+        return "<Client({})>".format(self.identity)
 
     @property
     def identity(self):
@@ -85,6 +85,7 @@ class Client(object):
     def disconnect(self):
         self.connected = False
         self.disconnected_at = time.time()
+        self.send(None)
 
     def clear_ping_count(self):
         self.ping_count = 0

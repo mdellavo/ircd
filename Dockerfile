@@ -15,5 +15,3 @@ RUN useradd -ms /bin/bash ircd
 USER ircd
 ENV HOME /home/ircd
 WORKDIR /home/ircd
-
-CMD ["/usr/bin/python", "/site/ircd/ircd.py", "/site/cert.pem"]
