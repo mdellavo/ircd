@@ -24,7 +24,7 @@ def parsemsg(s):
     return prefix, command, args
 
 
-class Prefix(object):
+class Prefix:
     def __init__(self, prefix):
         self.prefix = prefix
 
@@ -57,7 +57,7 @@ class Prefix(object):
         return rv
 
 
-class IRCMessage(object):
+class IRCMessage:
     def __init__(self, prefix, command, *args):
         self.prefix = prefix
         self.command = command

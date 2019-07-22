@@ -15,8 +15,11 @@ logging.basicConfig(
 
 log = logging.getLogger("ircd.main")
 
-LISTEN_ADDRESS, LISTEN_PORT = "127.0.0.1", 8888
-LINK_ADDRESS, LINK_PORT = "127.0.0.1", 8887
+CLIENT_PORT = "9999"
+CLIENT_LISTEN_ADDRESS = "0.0.0.0:" + CLIENT_PORT
+
+LINK_PORT = "6666"
+LINK_LISTEN_ADDRESS = "0.0.0.0:" + LINK_PORT
 
 PING_INTERVAL = 60
 PING_GRACE = 5
@@ -25,15 +28,21 @@ IDENT_TIMEOUT = 10
 QUIT_MESSAGE = "goodbye"
 
 
-async def readline(reader):
-    return (await reader.readuntil(TERMINATOR.encode())).decode().strip()
+def parse_address(s):
+    parts = s.split(":")
+    host, port = parts
+    return host, int(port)
 
 
-async def write_message(client, writer, message):
+async def readline(stream):
+    return (await stream.readuntil(TERMINATOR.encode())).decode().strip()
+
+
+async def write_message(client, stream, message):
     line = message.format() + TERMINATOR
     bytes = line.encode()
-    writer.write(bytes)
-    await writer.drain()
+    stream.write(bytes)
+    await stream.drain()
     log.debug("wrote to %s: %s", client, bytes)
 
 
@@ -59,17 +68,17 @@ async def main(args):
         writer.close()
         await writer.wait_closed()
 
-    async def _on_client_connected(reader, writer, is_link=False):
-        client_address, client_port, client_host = await resolve_peerinfo(writer)
+    async def _on_client_connected(stream, link=False):
+        client_address, client_port, client_host = await resolve_peerinfo(stream)
         log.info("connection from %s (%s)", client_address, client_host)
 
-        client = Client(client_address, client_host)
+        client = Client(client_address, client_host, link=link)
 
         start_writer = False
         writer_task = None
-        while client.connected and not reader.at_eof():
+        while client.connected and not stream.at_eof():
             try:
-                line = await readline(reader)
+                line = await readline(stream)
             except asyncio.streams.IncompleteReadError:
                 break
 
@@ -77,19 +86,32 @@ async def main(args):
             log.debug("read from %s: %s", client_address, message)
             await incoming.put((client, message))
             if not start_writer:
-                writer_task = asyncio.create_task(_client_writer(client, writer))
+                writer_task = asyncio.create_task(_client_writer(client, stream))
                 start_writer = True
-        await _drop_client(client, writer)
+        await _drop_client(client, stream)
         await writer_task
         log.debug("client reader for %s (%s) shutdown", client.address, client.host)
 
-    async def _client_writer(client, writer):
+    async def _client_writer(client, stream):
+        last_ping = time.time()
         while client.connected:
-            message = await client.outgoing.get()
-            if not message:
-                continue
-            await write_message(client, writer, message)
-        await _drop_client(client, writer)
+            try:
+                message = await asyncio.wait_for(client.outgoing.get(), PING_INTERVAL)
+            except asyncio.TimeoutError:
+                message = None
+
+            if message:
+                await write_message(client, stream, message)
+
+            diff = time.time() - last_ping
+            if diff > PING_INTERVAL:
+                irc.ping(client)
+                last_ping = time.time()
+                client.ping_count += 1
+                if client.ping_count > PING_GRACE:
+                    break
+
+        await _drop_client(client, stream)
         log.debug("client writer for %s (%s) shutdown", client.address, client.host)
 
     async def _irc_processor():
@@ -103,35 +125,42 @@ async def main(args):
         log.debug("irc processor shutdown")
     irc_processor = asyncio.create_task(_irc_processor())
 
-    def _start_client(reader, writer):
-        asyncio.create_task(_on_client_connected(reader, writer))
+    def _start_client(stream):
+        asyncio.create_task(_on_client_connected(stream))
 
+    client_server = asyncio.StreamServer(_start_client, args.listen[0], args.listen[1])
     async def _client_listener():
-        server = await asyncio.start_server(_start_client, args.listen_address, args.listen_port)
-        log.info("serving clients on %s:%s", args.listen_address, args.listen_port)
-        async with server:
-            await server.serve_forever()
+        log.info("serving clients on %s:%s", args.listen[0], args.listen[1])
+        async with client_server:
+            await client_server.serve_forever()
     client_listener = asyncio.create_task(_client_listener())
 
-    def _start_link(reader, writer):
-        asyncio.create_task(_on_client_connected(reader, writer))
+    def _start_link(stream):
+        asyncio.create_task(_on_client_connected(stream, link=True))
 
+    link_server = asyncio.StreamServer(_start_link, args.link[0], args.link[1])
     async def _link_listener():
-        server = await asyncio.start_server(_start_link, args.link_address, args.link_port)
-        log.info("serving links on %s:%s", args.link_address, args.link_port)
-        async with server:
-            await server.serve_forever()
+        log.info("serving links on %s:%s", args.link[0], args.link[1])
+        async with link_server:
+            await link_server.serve_forever()
     link_listener = asyncio.create_task(_link_listener())
 
-    await asyncio.gather(irc_processor, client_listener, link_listener)
+    async def _start_peer():
+        log.info("STARTING PEER: %s", args.peer)
+
+    coros = [irc_processor, client_listener, link_listener]
+    if args.peer:
+        peer_conn = asyncio.create_task(_start_peer())
+        coros.append(peer_conn)
+
+    await asyncio.gather(*coros)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="irc server")
-    parser.add_argument("--listen_address", help="listen address", default=LISTEN_ADDRESS)
-    parser.add_argument("--listen_port", help="listen port", default=LISTEN_PORT, type=int)
-    parser.add_argument("--link_address", help="link address", default=LINK_ADDRESS)
-    parser.add_argument("--link_port", help="link port", default=LINK_PORT, type=int)
+    parser.add_argument("--listen", help="listen address", type=parse_address, default=CLIENT_LISTEN_ADDRESS)
+    parser.add_argument("--link", help="link address", type=parse_address, default=LINK_LISTEN_ADDRESS)
+    parser.add_argument("--peer", help="peer address", type=parse_address)
     parser.add_argument("--verbose", help="verbose mode", action="store_true")
     args = parser.parse_args(sys.argv[1:])
 

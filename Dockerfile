@@ -1,17 +1,28 @@
 FROM ubuntu
 MAINTAINER Marc DellaVolpe "marc.dellavolpe@gmail.com"
 
+VOLUME /home/ircd
+
 ENV DEBIAN_FRONTEND noninteractive
+ENV HOME /home/ircd
+WORKDIR /home/ircd
 
-RUN apt-get update && apt-get install -y python3 python3-dev python3-pip
+RUN apt-get update
+RUN apt-get dist-upgrade -y
+RUN apt-get install -y software-properties-common
 
-COPY requirements.txt /tmp/
+RUN add-apt-repository ppa:deadsnakes/ppa
+RUN apt-get install -y python3.8 python3.8-dev python3-pip
+COPY requirements.txt /tmp
 RUN pip3 install -r /tmp/requirements.txt
 RUN rm /tmp/requirements.txt
 
-RUN useradd -ms /bin/bash ircd
+RUN apt-get purge -y software-properties-common
+RUN apt-get -y autoremove
+
 # RUN openssl req -x509 -newkey rsa:2048 -out /site/cert.pem -keyout /site/cert.pem -nodes -subj '/CN=localhost'
 
+RUN useradd -ms /bin/bash ircd
 USER ircd
-ENV HOME /home/ircd
-WORKDIR /home/ircd
+
+CMD python3.8 -m ircd

@@ -24,7 +24,7 @@ def validate(nickname=False, identity=False, num_params=None):
     return _validate
 
 
-class Handler(object):
+class Handler:
     def __init__(self, irc, client):
         self.irc = irc
         self.client = client
@@ -32,7 +32,7 @@ class Handler(object):
     def __call__(self, msg):
         handler = msg.command.lower()
 
-        log.debug("dispatching: %s", handler)
+        #log.debug("dispatching: %s", handler)
 
         callback = getattr(self, handler, None)
         if callback and callable(callback):

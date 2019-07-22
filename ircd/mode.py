@@ -5,7 +5,7 @@ class ModeParamMissing(ValueError):
     pass
 
 
-class ModeFlag(object):
+class ModeFlag:
     KEY = None
 
     def __init__(self):
@@ -173,7 +173,7 @@ class ChannelOperatorFlag(ChannelModeFlag):
             self.channel.operators.remove(nickname)
 
 
-class Mode(object):
+class Mode:
 
     AWAY = "a"
     INVISIBLE = "i"

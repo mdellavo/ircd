@@ -4,6 +4,21 @@
 
 a small IRCd in python
 
+## Running
+
+with docker:
+```
+# Run server
+docker build -t mdellavo/ircd .
+docker run --rm -i -t  -v $PWD:/home/ircd -p 127.0.0.1:8888:8888 -p 127.0.0.1:8887:8887 mdellavo/ircd
+
+# Run tests
+docker run --rm -i -t  -v $PWD:/home/ircd mdellavo/ircd pytest
+
+# Start up 2 nodes and link them
+docker-compose up
+```
+
 ## Author
 
 Marc DellaVolpe  (marc.dellavolpe@gmail.com)

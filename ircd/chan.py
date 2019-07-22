@@ -5,7 +5,7 @@ from ircd.mode import Mode
 log = logging.getLogger(__name__)
 
 
-class Channel(object):
+class Channel:
     def __init__(self, name, owner, key=None):
         self.name = name
         self.owner = owner

@@ -1,7 +1,18 @@
 version: "3"
 services:
   node-a:
-    build: .
-    command:
+    image: mdellavo/ircd
+    volumes:
+      - .:/home/ircd
+    ports:
+      - "9001:9999"
+    command: python3.8 -m ircd
   node-b:
-    build: .
+    image: mdellavo/ircd
+    volumes:
+      - .:/home/ircd
+    ports:
+      - "9002:9999"
+    command: python3.8 -m ircd --peer node-a:6666
+    depends_on:
+      - node-a

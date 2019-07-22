@@ -3,7 +3,7 @@ from datetime import datetime
 from ircd.mode import Mode
 
 
-class Nickname(object):
+class Nickname:
     def __init__(self, nickname):
         self.nickname = nickname
         self.mode = Mode.for_nickname(self)

@@ -1,7 +1,7 @@
 import re
 
 
-class Mask(object):
+class Mask:
     def __init__(self, nickname=None, user=None, host=None):
         self.nickname = nickname or "*"
         self.user = user or "*"

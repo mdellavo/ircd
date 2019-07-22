@@ -17,7 +17,7 @@ CHAN_START_CHARS = "&#!+"
 log = logging.getLogger(__name__)
 
 
-class IRC(object):
+class IRC:
     def __init__(self, host):
         self.host = host
         self.running = True
@@ -37,8 +37,10 @@ class IRC(object):
         if client not in self.links:
             self.links.append(client)
 
-    def forward_message(self, msg):
+    def forward_message(self, orig_client, msg):
         for client in self.links:
+            if client == orig_client:
+                continue
             client.send(msg)
 
     def get_channels(self):
@@ -85,10 +87,12 @@ class IRC(object):
 
     def process(self, client, msg):
         msg = IRCMessage(msg[0], msg[1], *msg[2])
-        if msg.prefix:
-            client = self.get_client(msg.prefix)
-        handler = Handler(self, client)
-        handler(msg)
+
+        if client.link:
+            self.forward_message(client, msg)
+        else:
+            handler = Handler(self, client)
+            handler(msg)
 
     def set_nick(self, client, new_nickname):
         if self.has_nickname(new_nickname):
@@ -288,7 +292,6 @@ class IRC(object):
             raise IRCError(IRCMessage.error_users_dont_match(self.host, client.name))
 
         nickname = self.get_nickname(client.name)
-
         if Mode.AWAY in flags or Mode.OPERATOR in flags:
             return
 
@@ -310,5 +313,6 @@ class IRC(object):
 
     def kick(self, client, channel, nickname, comment=None):
         channel.kick(nickname)
+
         other_client = self.lookup_client(nickname.nickname)
         other_client.send(IRCMessage.kick(client.identity, channel, nickname, comment=comment))

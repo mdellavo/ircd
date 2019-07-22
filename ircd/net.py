@@ -6,13 +6,12 @@ from ircd.message import Prefix
 
 log = logging.getLogger(__name__)
 
-BACKLOG = 10
 
-
-class Client(object):
-    def __init__(self, address, host):
+class Client:
+    def __init__(self, address, host, link=False):
         self.address = address
         self.host = host or address
+        self.link = link
 
         self.name = None
         self.connected_at = time.time()
@@ -39,32 +38,6 @@ class Client(object):
     def identity(self):
         prefix = Prefix(self.host) if self.server else Prefix.from_parts(self.name, self.user, self.host)
         return str(prefix)
-
-    def writer(self):
-        last_ping = time.time()
-
-        while self.is_connected:
-            try:
-                msg = self.outgoing.get(timeout=PING_INTERVAL)
-            except Empty:
-                msg = None
-
-            if msg and self.transport:
-                try:
-                    log.debug("wrie: %s", msg)
-                    self.transport.write(msg)
-                except TransportError as e:
-                    log.error("error writing from client: %s", e)
-                    self.irc.drop_client(self, message=str(e))
-
-            diff = time.time() - last_ping
-            if diff > PING_INTERVAL:
-                self.irc.ping(self)
-                last_ping = time.time()
-                self.ping_count += 1
-                if self.ping_count > PING_GRACE:
-                    self.irc.drop_client(self, message="ping timeout")
-                    break
 
     def set_nickname(self, nickname):
         self.name = nickname
