@@ -244,3 +244,7 @@ class IRCMessage:
     @classmethod
     def kick(cls, prefix, channel, nickname, comment=None):
         return cls(prefix, "KICK", channel.name, nickname.nickname, comment)
+
+    @classmethod
+    def server(cls, ):
+        pass

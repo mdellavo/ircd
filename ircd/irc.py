@@ -37,12 +37,6 @@ class IRC:
         if client not in self.links:
             self.links.append(client)
 
-    def forward_message(self, orig_client, msg):
-        for client in self.links:
-            if client == orig_client:
-                continue
-            client.send(msg)
-
     def get_channels(self):
         return self.channels.values()
 
@@ -88,11 +82,13 @@ class IRC:
     def process(self, client, msg):
         msg = IRCMessage(msg[0], msg[1], *msg[2])
 
-        if client.link:
-            self.forward_message(client, msg)
-        else:
-            handler = Handler(self, client)
-            handler(msg)
+        handler = Handler(self, client)
+        handler(msg)
+
+        for link in self.links:
+            if link == client:
+                continue
+            link.send(msg)
 
     def set_nick(self, client, new_nickname):
         if self.has_nickname(new_nickname):
