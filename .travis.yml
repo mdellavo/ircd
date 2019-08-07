@@ -1,3 +1,9 @@
+
 language: python
-script:
-  - pytest
+
+before_install:
+  - docker build -t mdellavo/ircd .
+  - docker run -v $PWD:/home/ircd mdellavo/ircd pytest
+
+services:
+  - docker
