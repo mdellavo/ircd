@@ -3,3 +3,4 @@ from .nick import Nickname
 from .chan import Channel
 from .mask import Mask
 from .message import Prefix, IRCMessage
+from .net import Client, Server

@@ -1,630 +1,666 @@
-from unittest import TestCase, mock
+import asyncio
+import contextlib
+from unittest import mock
 
-from ircd import IRC
-from ircd.net import Client
-from ircd.message import parsemsg
+
+import pytest
+
+from ircd import IRC, Server
 from ircd.irc import SERVER_NAME, SERVER_VERSION
 
+pytestmark = pytest.mark.asyncio
 
-class TestIRC(TestCase):
-    def setUp(self):
-        self.irc = IRC("localhost")
+HOST = "localhost"
+ADDRESS = "127.0.0.1"
+PORT = 9999
 
-    def get_client(self):
-        return Client("127.0.0.1", "localhost")
+@contextlib.asynccontextmanager
+async def connect(address=ADDRESS, port=PORT):
+    async with asyncio.connect(address, port) as conn:
+        yield conn
 
-    def process(self, client, messages):
-        """
-        Feed messages to the client
-        """
 
-        for message in messages:
-            self.irc.process(client, parsemsg(message))
+@contextlib.asynccontextmanager
+async def server_conn(address=ADDRESS, port=PORT):
+    irc = IRC(HOST)
+    server = Server(irc)
 
-    def assertReplies(self, client, values):
-        replies = []
-        while not client.outgoing.empty() and len(replies) < len(values):
-            replies.append(client.outgoing.get_nowait())
+    asyncio.create_task(server.run(address, port))
+    await server.running.wait()
 
-        for reply in replies:
-            print(reply.format())
-        print()
+    async with connect(address, port) as conn:
+        yield irc, conn
 
-        self.assertEqual(len(replies), len(values))
-        for reply, value in zip(replies, values):
-            self.assertEqual(reply.format(), value)
+    await server.shutdown()
 
-    def ident(self, client, nick):
-        self.process(client, [
-            "NICK {}".format(nick),
-            "USER {} 0 * :{}".format(nick, nick)
-        ])
-        self.assertReplies(client, [
-            ":{} NICK :{}".format(client.identity, nick),
-            ":localhost 001 {} :Welcome to the Internet Relay Network {}".format(nick, client.identity),
-            ":localhost 002 {} :Your host is {}, running version {}".format(nick, SERVER_NAME, SERVER_VERSION),
-            ":localhost 003 {} :This server was created {}".format(nick, self.irc.created),
-            ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION)
-        ])
-        self.assertEqual(client.name, nick)
-        self.assertEqual(client.user, nick)
-        self.assertEqual(client.realname, nick)
-        self.assertEqual(client.host, "localhost")
-        self.assertTrue(client.has_nickname)
-        self.assertTrue(client.has_identity)
 
-    def join(self, client, channel_name):
-        self.process(client, [
-            "JOIN {}".format(channel_name)
-        ])
+async def send(conn, messages):
+    await conn.write(("\r\n".join(messages) + "\r\n").encode())
 
-        channel = self.irc.get_channel(channel_name)
-        self.assertTrue(channel)
-        nickname = self.irc.get_nickname(client.name)
-        self.assertIn(nickname, channel.members)
 
-        members = sorted([member.nickname for member in channel.members])
-        self.assertReplies(client, [
-            ":{} JOIN :{}".format(client.identity, channel_name),
-            ":localhost 331 {} :{}".format(client.name, channel_name),
-            ":localhost 353 {} = {} :{}".format(client.name, channel_name, " ".join(members)),
-            ":localhost 366 {} {} :End of /NAMES list.".format(client.name, channel_name),
-        ])
+async def readall(conn):
+    read = []
+    while True:
+        try:
+            b = await asyncio.wait_for(conn.readline(), .01)
+        except asyncio.exceptions.TimeoutError:
+            break
+        read.append(b.strip().decode())
+    return read
 
-    def part(self, client, chan, message=None):
-        if message:
-            cmd = "PART {} :{}".format(chan, message)
-        else:
-            cmd = "PART {}".format(chan)
 
-        self.process(client, [
-            cmd
-        ])
+async def ident(conn, irc, nick):
+    await send(conn, [
+        "NICK {}".format(nick),
+        "USER {} 0 * :{}".format(nick, nick)
+    ])
+    assert await readall(conn) == [
+        ":{}!{}@{} NICK :{}".format(nick, nick, HOST, nick),
+        ":localhost 001 {} :Welcome to the Internet Relay Network {}!{}@{}".format(nick, nick, nick, HOST),
+        ":localhost 002 {} :Your host is {}, running version {}".format(nick, SERVER_NAME, SERVER_VERSION),
 
-        if message:
-            value = ":{} PART {} :{}".format(client.identity, chan, message)
-        else:
-            value = ":{} PART :{}".format(client.identity, chan)
+        ":localhost 003 {} :This server was created {}".format(nick, irc.created),
+        ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION)
+    ]
+    # self.assertEqual(client.name, nick)
+    # self.assertEqual(client.user, nick)
+    # self.assertEqual(client.realname, nick)
+    # self.assertEqual(client.host, "localhost")
+    # self.assertTrue(client.has_nickname)
+    # self.assertTrue(client.has_identity)
 
-        self.assertReplies(client, [
-            value,
-        ])
 
-        channel = self.irc.get_channel(chan)
-        self.assertTrue(channel)
-        nickname = self.irc.get_nickname(client.name)
-        self.assertNotIn(nickname, channel.members)
+async def join(conn, irc, nickname, channel_name):
+    await send(conn, [
+        "JOIN {}".format(channel_name)
+    ])
+    replies = await readall(conn)
 
-    def test_ident(self):
-        self.ident(self.get_client(), "foo")
+    channel = irc.get_channel(channel_name)
+    assert channel
+    assert irc.get_nickname(nickname) in channel.members
 
-        self.assertIn("foo", self.irc.nick_client)
-        self.assertIn("foo", self.irc.nicknames)
-        client = self.irc.lookup_client("foo")
-        self.assertTrue(client.has_identity)
-        self.assertTrue(client.has_nickname)
+    members = sorted([member.nickname for member in channel.members])
+    assert replies == [
+        ":{}!{}@{} JOIN :{}".format(nickname, nickname, HOST, channel_name),
+        ":localhost 331 {} :{}".format(nickname, channel_name),
+        ":localhost 353 {} = {} :{}".format(nickname, channel_name, " ".join(members)),
+        ":localhost 366 {} {} :End of /NAMES list.".format(nickname, channel_name),
+    ]
 
-    def test_nick(self):
-        self.ident(self.get_client(), "foo")
-        client = self.irc.lookup_client("foo")
 
-        self.assertEqual(client.name, "foo")
-        self.assertIn("foo", self.irc.nicknames)
+async def part(conn, irc, nickname, chan, message=None):
+    if message:
+        cmd = "PART {} :{}".format(chan, message)
+    else:
+        cmd = "PART {}".format(chan)
 
-        self.process(client, [
+    await send(conn, [cmd])
+
+    if message:
+        value = ":{}!{}@{} PART {} :{}".format(nickname, nickname, HOST, chan, message)
+    else:
+        value = ":{}!{}@{} PART :{}".format(nickname, nickname, HOST, chan)
+
+    assert await readall(conn) == [value]
+
+    channel = irc.get_channel(chan)
+    nickname = irc.get_nickname(nickname)
+    assert nickname not in channel.members
+
+@pytest.mark.asyncio
+async def test_ident():
+    async with server_conn() as (irc, conn):
+        await ident(conn, irc, "foo")
+        "foo" in irc.nick_client
+        "foo" in irc.nicknames
+        client = irc.lookup_client("foo")
+        assert client.has_identity
+        assert client.has_nickname
+
+
+@pytest.mark.asyncio
+async def test_nick():
+    async with server_conn() as (irc, conn):
+        await ident(conn, irc, "foo")
+        client = irc.lookup_client("foo")
+        assert client.name == "foo"
+        assert "foo" in irc.nicknames
+        await send(conn, [
             "NICK :bar"
         ])
+        assert await readall(conn) == [":foo!foo@localhost NICK :bar"]
+        assert "foo" not in irc.nicknames
+        assert client.name == "bar"
+        assert "bar" in irc.nicknames
 
-        self.assertReplies(client, [
-            ":foo!foo@localhost NICK :bar"
-        ])
 
-        self.assertNotIn("foo", self.irc.nicknames)
-        self.assertEqual(client.name, "bar")
-        self.assertIn("bar", self.irc.nicknames)
+@pytest.mark.asyncio
+async def test_join_part():
+    async with server_conn() as (irc, conn):
+        await ident(conn, irc, "foo")
+        await join(conn, irc, "foo", "#")
 
-    def test_join_part(self):
-        client = self.get_client()
-        self.ident(client, "foo")
-        self.join(client, "#")
+        assert "#" in irc.channels
+        channel = irc.channels["#"]
+        assert channel.name == "#"
+        assert [member.nickname for member in channel.members] == ["foo"]
+        assert channel.owner.nickname == "foo"
 
-        self.assertIn("#", self.irc.channels)
-        channel = self.irc.channels["#"]
-        self.assertEqual(channel.name, "#")
-        self.assertEqual([member.nickname for member in channel.members], ["foo"])
-        self.assertEqual(channel.owner.nickname, "foo")
+        nickname = irc.get_nickname("foo")
+        assert [chan.name for chan in nickname.channels] == ["#"]
 
-        nickname = self.irc.get_nickname(client.name)
-        self.assertEqual([chan.name for chan in nickname.channels], ["#"])
+        await part(conn, irc, "foo", "#", message="byebye")
+        assert channel.members == []
+        assert [chan.name for chan in nickname.channels] == []
 
-        self.part(client, "#", message="byebye")
-        self.assertEqual(channel.members, [])
-        self.assertEqual([chan.name for chan in nickname.channels], [])
 
-    def test_join_key(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
-        self.join(client_a, "#")
+@pytest.mark.asyncio
+async def test_join_key():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
+        await ident(conn_a, irc, "foo")
+        await join(conn_a, irc, "foo", "#")
 
-        self.process(client_a, [
+        await send(conn_a, [
             "MODE # +k :sekret"
         ])
-        self.assertReplies(client_a, [
+
+        assert await readall(conn_a) == [
             ":foo!foo@localhost MODE # +k :sekret"
-        ])
+        ]
 
-        self.assertEqual(self.irc.channels["#"].key, "sekret")
+        assert irc.channels["#"].key == "sekret"
+        await ident(conn_b, irc, "bar")
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
-
-        self.process(client_b, [
+        await send(conn_b, [
             "JOIN :#"
         ])
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":localhost 475 bar :# :Cannot join channel (+k)"
-        ])
+        ]
 
-        self.process(client_b, [
+        await send(conn_b, [
             "JOIN # :sekret"
         ])
-        self.assertReplies(client_b, [
+        assert (await readall(conn_b))[:1] == [
             ":bar!bar@localhost JOIN :#"
-        ])
+        ]
 
-    def test_privmsg_channel(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
+
+@pytest.mark.asyncio
+async def test_privmsg_channel():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
+        await ident(conn_a, irc, "foo")
 
         # not joined yet
-        self.process(client_a, [
+        await send(conn_a, [
             "PRIVMSG # :hello world"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":localhost 403 foo :# No such nick/channel"
-        ])
+        ]
 
-        self.join(client_a, "#")
+        await join(conn_a, irc, "foo", "#")
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
-        self.join(client_b, "#")
+        await ident(conn_b, irc, "bar")
+        await join(conn_b, irc, "bar", "#")
 
-        channel = self.irc.channels["#"]
-        self.assertEqual([member.nickname for member in channel.members], ["foo", "bar"])
+        channel = irc.channels["#"]
+        assert [member.nickname for member in channel.members] == ["foo", "bar"]
 
-        self.process(client_a, [
+        await send(conn_a, [
             "PRIVMSG # :hello world"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":bar!bar@localhost JOIN :#"
-        ])  # no reply to self
+        ]  # no reply to self
 
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":foo!foo@localhost PRIVMSG # :hello world"
-        ])
+        ]
 
-        self.part(client_a, "#")
-        self.process(client_a, [
+        await part(conn_a, irc, "foo", "#")
+        await send(conn_a, [
             "PRIVMSG # :hello world"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":localhost 441 :foo"
-        ])
+        ]
 
-    def test_privmsg_client(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
+@pytest.mark.asyncio
+async def test_privmsg_client():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
+        await ident(conn_a, irc, "foo")
+        await ident(conn_b, irc, "bar")
 
-        self.process(client_a, [
+        await send(conn_a, [
             "PRIVMSG bar :hello world"
         ])
 
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":foo!foo@localhost PRIVMSG bar :hello world"
-        ])
+        ]
 
-    def test_user_mode(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
 
-        nickname = self.irc.nicknames["foo"]
+@pytest.mark.asyncio
+async def test_user_mode():
+    async with server_conn() as (irc, conn):
+        await ident(conn, irc, "foo")
 
-        self.process(client_a, [
+        nickname = irc.nicknames["foo"]
+
+        await send(conn, [
             "MODE foo :+i"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn) == [
             ":foo!foo@localhost MODE foo :+i"
-        ])
-        self.assertTrue(nickname.is_invisible)
+        ]
+        assert nickname.is_invisible
 
-        self.process(client_a, [
+        await send(conn, [
             "MODE foo :-i"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn) == [
             ":foo!foo@localhost MODE foo :-i"
-        ])
+        ]
 
-        self.assertFalse(nickname.is_invisible)
-        self.assertEqual(nickname.mode.mode, "")
+        assert not nickname.is_invisible
+        assert nickname.mode.mode == ""
 
-    def test_channel_mode(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
-        self.join(client_a, "#")
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
-        self.join(client_b, "#")
+@pytest.mark.asyncio
+async def test_channel_mode():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
 
-        self.assertReplies(client_a, [
+        await ident(conn_a, irc, "foo")
+        await join(conn_a, irc, "foo", "#")
+
+        await ident(conn_b, irc, "bar")
+        await join(conn_b, irc, "bar", "#")
+
+        assert await readall(conn_a) == [
             ":bar!bar@localhost JOIN :#"
-        ])
+        ]
 
-        channel = self.irc.channels["#"]
+        channel = irc.channels["#"]
 
         # check operator
-        self.process(client_b, [
+        await send(conn_b, [
             "MODE # :+n"
         ])
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":localhost 482 bar :# You're not channel operator"
-        ])
+        ]
 
-        self.process(client_a, [
+        await send(conn_a, [
             "MODE # :+n"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":foo!foo@localhost MODE # :+n"
-        ])
-        self.assertReplies(client_b, [
+        ]
+
+        assert await readall(conn_b) == [
             ":foo!foo@localhost MODE # :+n"
-        ])
-        self.assertEqual(channel.mode.mode, "n")
-        self.process(client_a, [
+        ]
+
+        assert channel.mode.mode == "n"
+        await send(conn_a, [
             "MODE # :-n"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":foo!foo@localhost MODE # :-n"
-        ])
+        ]
 
-        self.assertEqual(channel.mode.mode, "")
+        assert channel.mode.mode == ""
 
-    def test_channel_operator(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
-        self.join(client_a, "#")
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
-        self.join(client_b, "#")
+@pytest.mark.asyncio
+async def test_channel_operator():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
+        await ident(conn_a, irc, "foo")
+        await join(conn_a, irc, "foo", "#")
 
-        self.assertReplies(client_a, [
+        await ident(conn_b, irc, "bar")
+        await join(conn_b, irc, "bar", "#")
+
+        assert await readall(conn_a) == [
             ":bar!bar@localhost JOIN :#"
-        ])
+        ]
 
-        channel = self.irc.channels["#"]
+        channel = irc.channels["#"]
 
-        self.process(client_a, [
+        await send(conn_a, [
             "MODE # +o :bar"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":foo!foo@localhost MODE # +o :bar"
-        ])
-        self.assertReplies(client_b, [
+        ]
+        assert await readall(conn_b) == [
             ":foo!foo@localhost MODE # +o :bar"
-        ])
+        ]
 
-        nickname = self.irc.get_nickname(client_b.name)
-        self.assertIn(nickname, channel.operators)
+        nickname = irc.get_nickname("bar")
+        assert nickname in channel.operators
 
-        self.process(client_a, [
+        await send(conn_a, [
             "MODE # -o :bar"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":foo!foo@localhost MODE # -o :bar"
-        ])
-        self.assertReplies(client_b, [
+        ]
+        assert await readall(conn_b) == [
             ":foo!foo@localhost MODE # -o :bar"
-        ])
+        ]
+        assert nickname not in channel.operators
 
-        self.assertNotIn(nickname, channel.operators)
 
-    def test_set_channel_secret(self):
-        client = self.get_client()
-        self.ident(client, "foo")
-        self.join(client, "#")
+@pytest.mark.asyncio
+async def test_set_channel_secret():
+    async with server_conn() as (irc, conn):
+        await ident(conn, irc, "foo")
+        await join(conn, irc, "foo", "#")
 
-        self.process(client, [
+        await send(conn, [
             "MODE # :+k"
         ])
-        self.assertReplies(client, [
+        assert await readall(conn) == [
             ":localhost 461 foo MODE :Not enough parameters"
-        ])
+        ]
 
-        self.process(client, [
+        await send(conn, [
             "MODE # +k :sekret"
         ])
-        self.assertReplies(client, [
+        assert await readall(conn) == [
             ":foo!foo@localhost MODE # +k :sekret"
-        ])
+        ]
 
-        self.assertEqual(self.irc.channels["#"].key, "sekret")
+        assert irc.channels["#"].key == "sekret"
 
-        self.process(client, [
+        await send(conn, [
             "MODE # -k"
         ])
-        self.assertReplies(client, [
+        assert await readall(conn) == [
             ":foo!foo@localhost MODE # :-k"
-        ])
-        self.assertIsNone(self.irc.channels["#"].key)
+        ]
+        assert irc.channels["#"].key is None
 
-    def test_topic(self):
-        client = self.get_client()
-        self.ident(client, "foo")
-        self.join(client, "#")
 
-        self.process(client, [
-            "TOPIC #"
-        ])
-
-        self.assertReplies(client, [
-            ":localhost 331 foo :#"
-        ])
+@pytest.mark.asyncio
+async def test_topic():
+    async with server_conn() as (irc, conn):
         with mock.patch("time.time") as time_patch:
             time_patch.return_value = 1562815441
-            self.process(client, [
+
+            await ident(conn, irc, "foo")
+            await join(conn, irc, "foo", "#")
+
+            await send(conn, [
+                "TOPIC #"
+            ])
+
+            assert await readall(conn) == [
+                ":localhost 331 foo :#"
+            ]
+            await send(conn, [
                 "TOPIC # :hello world"
             ])
-        self.assertReplies(client, [
-            ":localhost 332 foo # :hello world",
-            ":localhost 333 foo # foo :1562815441",
-        ])
-        channel = self.irc.get_channel("#")
-        self.assertEqual(channel.topic, "hello world")
+            assert await readall(conn) == [
+                ":localhost 332 foo # :hello world",
+                ":localhost 333 foo # foo :1562815441",
+            ]
+            channel = irc.get_channel("#")
+            assert channel.topic == "hello world"
 
-        self.process(client, [
-            "TOPIC #"
-        ])
-        self.assertReplies(client, [
-            ":localhost 332 foo # :hello world",
-        ])
+            await send(conn, [
+                "TOPIC #"
+            ])
+            assert await readall(conn) == [
+                ":localhost 332 foo # :hello world",
+            ]
 
-    def test_invite(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
 
-        self.join(client_a, "#")
-        self.process(client_a, [
+@pytest.mark.asyncio
+async def test_invite():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
+
+        await ident(conn_a, irc, "foo")
+        await join(conn_a, irc, "foo", "#")
+
+        await ident(conn_b, irc, "bar")
+
+        await send(conn_a, [
             "MODE # +i"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":foo!foo@localhost MODE # :+i"
-        ])
+        ]
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
+        channel = irc.get_channel("#")
+        nick_b = irc.get_nickname("bar")
 
-        channel = self.irc.get_channel("#")
-        nick_b = self.irc.get_nickname("bar")
+        assert channel.is_invite_only
+        assert not channel.can_join_channel(nick_b)
 
-        self.assertTrue(channel.is_invite_only)
-        self.assertFalse(channel.can_join_channel(nick_b))
-
-        self.process(client_b, [
+        await send(conn_b, [
             "JOIN #"
         ])
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":localhost 473 bar :# :Cannot join channel (+i)"
-        ])
+        ]
 
-        self.process(client_a, [
+        await send(conn_a, [
             "INVITE bar #"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":localhost 341 foo # :bar"
-        ])
+        ]
 
-        self.assertTrue(channel.can_join_channel(nick_b))
+        assert channel.can_join_channel(nick_b)
 
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":foo!foo@localhost INVITE bar :#"
-        ])
+        ]
 
-        self.process(client_b, [
+        await send(conn_b, [
             "JOIN #"
         ])
-        self.assertReplies(client_b, [
+        assert (await readall(conn_b))[:1] == [
             ":bar!bar@localhost JOIN :#"
-        ])
+        ]
 
-    def test_ban(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
+@pytest.mark.asyncio
+async def test_ban():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
 
-        self.join(client_a, "#")
-        channel = self.irc.get_channel("#")
-        self.assertFalse(channel.is_banned(client_b.identity))
+        await ident(conn_a, irc, "foo")
+        await join(conn_a, irc, "foo", "#")
 
-        self.process(client_a, [
+        await ident(conn_b, irc, "bar")
+
+        channel = irc.get_channel("#")
+        assert not channel.is_banned("bar!bar@localhost")
+
+        await send(conn_a, [
             "MODE # +b *!*@localhost"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":foo!foo@localhost MODE # +b :*!*@localhost"
-        ])
+        ]
 
-        self.assertTrue(channel.is_banned(client_b.identity))
+        assert channel.is_banned("bar!bar@localhost")
 
-        self.process(client_b, [
+        await send(conn_b, [
             "JOIN #"
         ])
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":localhost 474 bar :# :Cannot join channel (+b)"
-        ])
+        ]
 
-        self.process(client_a, [
+        await send(conn_a, [
             "MODE # +e *!*@localhost"
         ])
+        await readall(conn_a)
+        assert not channel.is_banned("bar!bar@localhost")
 
-        self.assertFalse(channel.is_banned(client_b.identity))
-
-        self.process(client_a, [
+        await send(conn_a, [
             "MODE # -e *!*@localhost"
         ])
+        await readall(conn_a)
 
-        self.assertTrue(channel.is_banned(client_b.identity))
+        assert channel.is_banned("bar!bar@localhost")
 
-        self.process(client_a, [
+        await send(conn_a, [
             "MODE # -b *!*@localhost"
         ])
+        await readall(conn_a)
 
-        self.assertFalse(channel.is_banned(client_b.identity))
+        assert not channel.is_banned("bar!bar@localhost")
 
-    def test_kick(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
 
-        self.join(client_a, "#")
-        self.process(client_a, [
+@pytest.mark.asyncio
+async def test_kick():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
+
+        await ident(conn_a, irc, "foo")
+        await join(conn_a, irc, "foo", "#")
+
+        await ident(conn_b, irc, "bar")
+
+        await send(conn_a, [
             "MODE # +i"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":foo!foo@localhost MODE # :+i"
-        ])
+        ]
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
+        channel = irc.get_channel("#")
+        nick_b = irc.get_nickname("bar")
 
-        channel = self.irc.get_channel("#")
-        nick_b = self.irc.get_nickname("bar")
+        assert channel.is_invite_only
+        assert not channel.can_join_channel(nick_b)
 
-        self.assertTrue(channel.is_invite_only)
-        self.assertFalse(channel.can_join_channel(nick_b))
-
-        self.process(client_a, [
+        await send(conn_a, [
             "INVITE bar #"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":localhost 341 foo # :bar"
-        ])
+        ]
 
-        self.assertTrue(channel.can_join_channel(nick_b))
+        assert channel.can_join_channel(nick_b)
 
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":foo!foo@localhost INVITE bar :#"
-        ])
+        ]
 
-        self.join(client_b, "#")
+        await join(conn_b, irc, "bar", "#")
 
-        self.assertIn(nick_b, channel.members)
+        assert nick_b in channel.members
 
-        self.process(client_a, [
+        await send(conn_a, [
             "KICK # bar :get out!"
         ])
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":foo!foo@localhost KICK # bar :get out!"
-        ])
-        self.assertNotIn(nick_b, channel.members)
-        self.assertFalse(channel.can_join_channel(nick_b))
+        ]
+        assert nick_b not in channel.members
+        assert not channel.can_join_channel(nick_b)
 
-    def test_names(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
-        self.join(client_a, "#")
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
-        self.join(client_b, "#")
+@pytest.mark.asyncio
+async def test_names():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
 
-        self.assertReplies(client_a, [
+        await ident(conn_a, irc, "foo")
+        await join(conn_a, irc, "foo", "#")
+
+        await ident(conn_b, irc, "bar")
+        await join(conn_b, irc, "bar", "#")
+
+        assert await readall(conn_a) == [
             ":bar!bar@localhost JOIN :#",
-        ])
-        self.process(client_a, [
+        ]
+        await send(conn_a, [
             "NAMES #"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":localhost 353 foo = # :bar foo",
             ":localhost 366 foo # :End of /NAMES list."
-        ])
+        ]
 
-    def test_list(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
+
+@pytest.mark.asyncio
+async def test_list():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
+
+        await ident(conn_a, irc, "foo")
+        await ident(conn_b, irc, "bar")
 
         for name in ["#foo", "#bar", "#baz"]:
-            self.join(client_a, name)
-            channel = self.irc.channels[name]
-            self.join(client_b, name)
-            self.assertReplies(client_a, [
+            await join(conn_a, irc, "foo", name)
+            channel = irc.channels[name]
+            await join(conn_b, irc, "bar", name)
+            assert await readall(conn_a) == [
                 ":bar!bar@localhost JOIN :" + name,
-            ])
+            ]
             channel.topic = name * 3
 
-        self.process(client_a, [
+        await send(conn_a, [
             "LIST"
         ])
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":localhost 321 foo Channel Users :Name",
             ":localhost 322 foo #foo 2 :#foo#foo#foo",
             ":localhost 322 foo #bar 2 :#bar#bar#bar",
             ":localhost 322 foo #baz 2 :#baz#baz#baz",
             ":localhost 323 foo :End of /LIST",
-        ])
+        ]
 
-    def test_away(self):
-        client_a = self.get_client()
-        self.ident(client_a, "foo")
-        self.process(client_a, [
+
+@pytest.mark.asyncio
+async def test_away():
+    async with server_conn() as (irc, conn_a), connect() as conn_b:
+
+        await ident(conn_a, irc, "foo")
+        await ident(conn_b, irc, "bar")
+
+        await send(conn_a, [
             "AWAY :gone fishin"
         ])
 
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":localhost 306 foo :You have been marked as being away"
-        ])
+        ]
 
-        nickname = self.irc.get_nickname(client_a.name)
-        self.assertTrue(nickname.is_away)
-        self.assertEqual(nickname.away_message, "gone fishin")
+        nickname = irc.get_nickname("foo")
+        assert nickname.is_away
+        assert nickname.away_message == "gone fishin"
 
-        client_b = self.get_client()
-        self.ident(client_b, "bar")
-
-        self.process(client_b, [
+        await send(conn_b, [
             "PRIVMSG foo :hello"
         ])
 
-        self.assertReplies(client_b, [
+        assert await readall(conn_b) == [
             ":foo!foo@localhost 301 bar foo :gone fishin"
-        ])
+        ]
 
-        self.process(client_a, [
+        await send(conn_a, [
             "AWAY"
         ])
 
-        self.assertReplies(client_a, [
+        assert await readall(conn_a) == [
             ":localhost 305 foo :You are no longer marked as being away"
-        ])
+        ]
 
-    def test_server(self):
-        client = self.get_client()
 
-        self.process(client, [
+@pytest.mark.asyncio
+async def test_server():
+    async with server_conn() as (irc, conn):
+        assert len(irc.links) == 0
+        await send(conn, [
             "SERVER foo 0 abcdef hello"
         ])
+        await readall(conn)
 
-        self.assertEqual(len(self.irc.links), 1)
-        self.assertIn(client, self.irc.links)
-
-        self.assertTrue(client.server)
-        self.assertEqual(client.name, "foo")
-        self.assertEqual(client.hop_count, "0")
-        self.assertEqual(client.token, "abcdef")
-        self.assertEqual(client.info, "hello")
+        assert len(irc.links) == 1

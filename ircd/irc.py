@@ -140,11 +140,12 @@ class IRC:
         client.disconnect()
 
         nickname = self.get_nickname(client.name)
-
-        for channel in nickname.channels:
-            self.send_to_channel(client, channel, IRCMessage.quit(client.identity, message), skip_self=True)
-
         if nickname:
+            for channel in nickname.channels:
+                try:
+                    self.send_to_channel(client, channel, IRCMessage.quit(client.identity, message), skip_self=True)
+                except IRCError:
+                    pass
             if nickname.nickname in self.nick_client:
                 del self.nick_client[nickname.nickname]
             if nickname.nickname in self.nicknames:

@@ -12,9 +12,10 @@ RUN apt-get dist-upgrade -y
 RUN apt-get install -y software-properties-common
 
 RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get install -y python3.8 python3.8-dev python3-pip
+RUN apt-get update
+RUN apt-get install -y python3.8 python3.8-dev python3-pip python3.8-distutils
 COPY requirements.txt /tmp
-RUN pip3 install -r /tmp/requirements.txt
+RUN python3.8 -m pip install -r /tmp/requirements.txt
 RUN rm /tmp/requirements.txt
 
 RUN apt-get purge -y software-properties-common
