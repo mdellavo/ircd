@@ -3,7 +3,7 @@ language: python
 
 before_install:
   - docker build -t mdellavo/ircd .
-  - docker run -v $PWD:/home/ircd mdellavo/ircd pytest -v
+  - docker run -v $PWD:/home/ircd mdellavo/ircd python3.8 -m pytest -v test_ircd.py
 
 services:
   - docker
