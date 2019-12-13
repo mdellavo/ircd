@@ -6,7 +6,7 @@ services:
       - .:/home/ircd
     ports:
       - "9001:9999"
-    command: python3.8 -m ircd
+    command: python3.8 -m ircd --verbose
   node-b:
     image: mdellavo/ircd
     volumes:

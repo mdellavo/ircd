@@ -86,11 +86,10 @@ async def readline(stream):
 
 
 async def write_message(client, stream, message):
-    if stream.at_eof():
-        return
     line = message.format() + TERMINATOR
     bytes = line.encode()
-    await stream.write(bytes)
+    stream.write(bytes)
+    await stream.drain()
     log.debug("wrote to %s: %s", client, bytes)
 
 
@@ -131,7 +130,7 @@ class Server:
             await self._drop_client(client, stream)
 
         for server in self.servers:
-            await server.abort()
+            server.close()
         self.servers = []
 
         for task in self.tasks:
@@ -145,7 +144,7 @@ class Server:
 
     async def _client_writer(self, client, stream):
         last_ping = time.time()
-        while client.connected and not stream.at_eof():
+        while client.connected:
             try:
                 message = await asyncio.wait_for(client.outgoing.get(), PING_INTERVAL)
             except asyncio.TimeoutError:
@@ -155,6 +154,7 @@ class Server:
                 await write_message(client, stream, message)
 
             diff = time.time() - last_ping
+
             if diff > PING_INTERVAL:
                 self.irc.ping(client)
                 last_ping = time.time()
@@ -165,18 +165,18 @@ class Server:
         await self._drop_client(client, stream)
         log.debug("client writer for %s (%s) shutdown", client.address, client.host)
 
-    async def _on_connect(self, stream, link, incoming):
-        client_address, client_port, client_host = await resolve_peerinfo(stream)
+    async def _on_connect(self, reader, writer, link, incoming):
+        client_address, client_port, client_host = await resolve_peerinfo(writer)
         log.info("connection from %s (%s)", client_address, client_host)
 
         client = Client(client_address, client_host, link=link)
-        self.clients.append((client, stream))
+        self.clients.append((client, writer))
 
         start_writer = False
         writer_task = None
-        while client.connected and not stream.at_eof():
+        while client.connected:
             try:
-                line = await readline(stream)
+                line = await readline(reader)
             except asyncio.IncompleteReadError:
                 log.info("error reading from: %s", client_address)
                 break
@@ -185,9 +185,9 @@ class Server:
             log.debug("read from %s: %s", client_address, message)
             await incoming.put((client, message))
             if not start_writer:
-                writer_task = asyncio.create_task(self._client_writer(client, stream))
+                writer_task = asyncio.create_task(self._client_writer(client, writer))
                 start_writer = True
-        await self._drop_client(client, stream)
+        await self._drop_client(client, writer)
         await writer_task
         log.debug("client reader for %s (%s) shutdown", client.address, client.host)
 
@@ -203,14 +203,14 @@ class Server:
     async def _listener(self, addr, port, link, incoming):
         log.info("serving %s on %s:%s", "links" if link else "clients", addr, port)
 
-        def _start(stream):
-            return asyncio.create_task(self._on_connect(stream, link, incoming))
+        def _start(reader, writer):
+            return asyncio.create_task(self._on_connect(reader, writer, link, incoming))
 
-        server = asyncio.StreamServer(_start, addr, port)
+        server = await asyncio.start_server(_start, addr, port)
         self.servers.append(server)
         async with server:
             if not link:
-                 self.running.set()
+                self.running.set()
             await server.serve_forever()
 
     async def _irc_processor(self, incoming):
