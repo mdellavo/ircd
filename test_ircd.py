@@ -46,7 +46,7 @@ async def readall(conn):
     read = []
     while True:
         try:
-            b = await asyncio.wait_for(conn.readline(), .1)
+            b = await asyncio.wait_for(conn.readline(), .5)
         except TimeoutError:
             break
         read.append(b.strip().decode())
