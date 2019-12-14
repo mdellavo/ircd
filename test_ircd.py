@@ -26,7 +26,7 @@ async def connect(address=ADDRESS, port=PORT):
 @contextlib.asynccontextmanager
 async def server_conn(address=ADDRESS, port=PORT):
     irc = IRC(HOST)
-    server = Server(irc)
+    server = Server(irc, ping_interval=5)
 
     asyncio.create_task(server.run(address, port))
     await server.running.wait()
@@ -42,15 +42,19 @@ async def send(conn, messages):
     await conn.drain()
 
 
-async def readall(conn):
-    read = []
+# FIXME nasty hack
+async def readall(reader):
+    lines = []
     while True:
         try:
-            b = await asyncio.wait_for(conn.readline(), .5)
+            b = await asyncio.wait_for(reader.readline(), .5)
         except TimeoutError:
             break
-        read.append(b.strip().decode())
-    return read
+        line = b.strip().decode()
+        assert " PING " not in line
+        lines.append(line)
+
+    return lines
 
 
 async def ident(reader, writer, irc, nick):

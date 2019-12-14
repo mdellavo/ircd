@@ -100,12 +100,13 @@ async def resolve_peerinfo(writer):
 
 
 class Server:
-    def __init__(self, irc):
+    def __init__(self, irc, ping_interval=PING_INTERVAL):
         self.irc = irc
         self.servers = []
         self.clients = []
         self.tasks = []
         self.running = asyncio.Event()
+        self.ping_interval = ping_interval
 
     async def run(self, client_listen_addr, client_listen_port, link_listen_addr=None, link_listen_port=None):
         log.info("Server %s start", self.irc.host)
@@ -146,7 +147,7 @@ class Server:
         last_ping = time.time()
         while client.connected:
             try:
-                message = await asyncio.wait_for(client.outgoing.get(), PING_INTERVAL)
+                message = await asyncio.wait_for(client.outgoing.get(), self.ping_interval)
             except asyncio.TimeoutError:
                 message = None
 
@@ -155,7 +156,7 @@ class Server:
 
             diff = time.time() - last_ping
 
-            if diff > PING_INTERVAL:
+            if diff > self.ping_interval:
                 self.irc.ping(client)
                 last_ping = time.time()
                 client.ping_count += 1
