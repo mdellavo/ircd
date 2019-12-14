@@ -16,3 +16,11 @@ services:
     command: python3.8 -m ircd --peer node-a:6666
     depends_on:
       - node-a
+  thelounge:
+    image: thelounge/thelounge:latest
+    container_name: thelounge
+    ports:
+      - "9003:9000"
+    restart: always
+    volumes:
+      - ~/.thelounge:/var/opt/thelounge # bind lounge config from the host's file system

@@ -32,7 +32,7 @@ class Handler:
     def __call__(self, msg):
         handler = msg.command.lower()
 
-        #log.debug("dispatching: %s", handler)
+        # log.debug("dispatching: %s", handler)
 
         callback = getattr(self, handler, None)
         if callback and callable(callback):
@@ -40,7 +40,7 @@ class Handler:
                 callback(msg)
             except IRCError as e:
                 self.client.send(e.msg)
-            except:
+            except Exception:
                 log.exception("error applying message: %s", msg)
 
         nickname = self.irc.get_nickname(self.client.name) if self.client.name else None

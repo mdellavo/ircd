@@ -70,12 +70,6 @@ async def ident(reader, writer, irc, nick):
         ":localhost 003 {} :This server was created {}".format(nick, irc.created),
         ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION)
     ]
-    # self.assertEqual(client.name, nick)
-    # self.assertEqual(client.user, nick)
-    # self.assertEqual(client.realname, nick)
-    # self.assertEqual(client.host, "localhost")
-    # self.assertTrue(client.has_nickname)
-    # self.assertTrue(client.has_identity)
 
 
 async def join(reader, writer, irc, nickname, channel_name):
