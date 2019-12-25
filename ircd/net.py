@@ -39,6 +39,7 @@ class Client:
 
         self.outgoing = asyncio.Queue()
         self.ping_count = 0
+        self.capabilities = []
 
     def __str__(self):
         return "<Client({})>".format(self.identity)
@@ -79,6 +80,11 @@ class Client:
     @property
     def has_identity(self):
         return self.has_nickname and all([self.user, self.realname])
+
+    def add_capabilities(self, caps):
+        for cap in caps:
+            if cap not in self.capabilities:
+                self.capabilities.append(cap)
 
 
 async def readline(stream):

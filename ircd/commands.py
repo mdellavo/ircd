@@ -72,6 +72,19 @@ class Handler:
         message = msg.args[0] if msg.args else "client quit"
         self.irc.drop_client(self.client, message=message)
 
+    def cap(self, msg):
+        command = msg.args[0].upper()
+        if command in ("LS", "LIST"):
+            self.irc.send_capabilities(self.client)
+        elif command == "REQ":
+            caps = msg.args[1].split()
+            self.irc.request_capabilities(self.client, caps)
+        elif command in ("END",):  # IGNORED
+            pass
+        else:
+            self.client.send(IRCMessage.error_invalid_cap_subcommand(self.irc.host, self.client.name, command))
+
+
     @validate(identity=True, num_params=1)
     def join(self, msg):
         chan_name = msg.args[0]

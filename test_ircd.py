@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 from unittest import mock
-from concurrent.futures import TimeoutError
 
 
 import pytest
@@ -47,8 +46,8 @@ async def readall(reader):
     lines = []
     while True:
         try:
-            b = await asyncio.wait_for(reader.readline(), .5)
-        except TimeoutError:
+            b = await asyncio.wait_for(reader.readline(), .1)
+        except asyncio.exceptions.TimeoutError:
             break
         line = b.strip().decode()
         assert " PING " not in line
@@ -109,6 +108,7 @@ async def part(reader, writer, irc, nickname, chan, message=None):
     channel = irc.get_channel(chan)
     nickname = irc.get_nickname(nickname)
     assert nickname not in channel.members
+
 
 @pytest.mark.asyncio
 async def test_ident():
@@ -666,3 +666,53 @@ async def test_server():
         await readall(reader)
 
         assert len(irc.links) == 1
+
+
+@pytest.mark.asyncio
+async def test_capabilities():
+    async with server_conn() as (irc, reader, writer):
+
+        await send(writer, [
+            "CAP BLAH",
+        ])
+
+        resp = await readall(reader)
+        print(resp)
+        assert resp == [
+            ':localhost 410 * BLAH :Invalid capability command'
+        ]
+
+        await send(writer, [
+            "CAP LS",
+            "CAP REQ :multi-prefix sasl",
+        ])
+
+        resp = await readall(reader)
+        print(resp)
+        assert resp == [
+            ':localhost CAP * LS :',
+            ':localhost CAP * NAK :multi-prefix sasl',
+        ]
+        await ident(reader, writer, irc, "foo")
+        client = irc.lookup_client("foo")
+        assert client.capabilities == []
+
+    async with server_conn() as (irc, reader, writer):
+        with mock.patch("ircd.irc.IRC.get_capabilities") as caps_patch:
+            caps_patch.return_value = ["foo"]
+
+            await send(writer, [
+                "CAP LS",
+                "CAP REQ :foo",
+            ])
+
+            resp = await readall(reader)
+            print(resp)
+            assert resp == [
+                ':localhost CAP * LS :foo',
+                ':localhost CAP * ACK :foo',
+            ]
+
+        await ident(reader, writer, irc, "foo")
+        client = irc.lookup_client("foo")
+        assert client.capabilities == ["foo"]

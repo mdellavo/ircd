@@ -16,6 +16,10 @@ CHAN_START_CHARS = "&#!+"
 
 log = logging.getLogger(__name__)
 
+CAPABILITIES = [
+
+]
+
 
 class IRC:
     def __init__(self, host):
@@ -36,6 +40,9 @@ class IRC:
         client.set_server(name, hop_count, token, info)
         if client not in self.links:
             self.links.append(client)
+
+    def get_capabilities(self):
+        return CAPABILITIES
 
     def get_channels(self):
         return self.channels.values()
@@ -177,6 +184,21 @@ class IRC:
         self.send_to_channel(client, channel, IRCMessage.join(client.identity, name))
         self.send_topic(client, channel)
         self.send_names(client, channel)
+
+    def send_capabilities(self, client):
+        nickname = self.get_nickname(client.name)
+        client.send(IRCMessage.reply_list_capabilities(self.host, nickname, self.get_capabilities()))
+
+    def request_capabilities(self, client, caps):
+        available_caps = self.get_capabilities()
+        accepted = [cap for cap in caps if cap in available_caps]
+        if accepted:
+            client.send(IRCMessage.reply_ack_capabilities(self.host, client.name, accepted))
+            client.add_capabilities(accepted)
+
+        rejected = [cap for cap in caps if cap not in available_caps]
+        if rejected:
+            client.send(IRCMessage.reply_nak_capabilities(self.host, client.name, rejected))
 
     def send_names(self, client, channel):
         nickname = self.get_nickname(client.name)

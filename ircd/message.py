@@ -89,6 +89,22 @@ class IRCMessage:
         return rv
 
     @classmethod
+    def error_invalid_cap_subcommand(cls, prefix, nickname, command):
+        return cls(prefix, "410", nickname or "*", command, "Invalid capability command")
+
+    @classmethod
+    def reply_list_capabilities(cls, prefix, nickname, capabilities):
+        return cls(prefix, "CAP", nickname or "*", "LS", " ".join(capabilities) or " ")
+
+    @classmethod
+    def reply_ack_capabilities(cls, prefix, nickname, capabilities):
+        return cls(prefix, "CAP", nickname or "*", "ACK", " ".join(capabilities))
+
+    @classmethod
+    def reply_nak_capabilities(cls, prefix, nickname, capabilities):
+        return cls(prefix, "CAP", nickname or "*", "NAK", " ".join(capabilities))
+
+    @classmethod
     def reply_welcome(cls, prefix, target, nickname, user, hostname):
         return cls(prefix, "001", target,
                    "Welcome to the Internet Relay Network {}!{}@{}".format(nickname, user, hostname))
