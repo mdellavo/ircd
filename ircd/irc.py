@@ -22,7 +22,7 @@ CAPABILITIES = [
 
 
 def _client_tags(tags):
-    return [tag.tag for tag in tags if tag.is_client_tag]
+    return [tag.tag for tag in tags if tag.is_client_tag] if tags else None
 
 
 class IRC:
