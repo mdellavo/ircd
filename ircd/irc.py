@@ -17,8 +17,12 @@ CHAN_START_CHARS = "&#!+"
 log = logging.getLogger(__name__)
 
 CAPABILITIES = [
-
+    "message-tags",
 ]
+
+
+def _client_tags(tags):
+    return [tag.tag for tag in tags if tag.is_client_tag]
 
 
 class IRC:
@@ -87,8 +91,6 @@ class IRC:
         return self.nick_client.get(nickname)
 
     def process(self, client, msg):
-        msg = IRCMessage(msg[0], msg[1], *msg[2])
-
         handler = Handler(self, client)
         handler(msg)
 
@@ -102,7 +104,6 @@ class IRC:
             raise IRCError(IRCMessage.error_nick_in_use(self.host, client.name, new_nickname))
 
         old = client.name
-
         # assemble our message before changing nick
         msg = IRCMessage.nick(client.identity, new_nickname)
 
@@ -249,14 +250,14 @@ class IRC:
             if member_client:
                 member_client.send(msg)
 
-    def send_private_message_to_channel(self, client, channel_name, text):
+    def send_private_message_to_channel(self, client, channel_name, msg):
         channel = self.get_channel(channel_name)
         if not channel:
             raise IRCError(IRCMessage.error_no_such_channel(self.host, client.name, channel_name))
 
-        self.send_to_channel(client, channel, IRCMessage.private_message(client.identity, channel_name, text), skip_self=True)
+        self.send_to_channel(client, channel, IRCMessage.private_message(client.identity, channel_name, msg.args[1], tags=_client_tags(msg.tags)), skip_self=True)
 
-    def send_private_message_to_client(self, client, nickname, text):
+    def send_private_message_to_client(self, client, nickname, msg):
         other = self.lookup_client(nickname)
         if not other:
             raise IRCError(IRCMessage.error_no_such_nickname(self.host, client.name, nickname))
@@ -265,7 +266,7 @@ class IRC:
         if other_nick.is_away:
             client.send(IRCMessage.reply_away(other.identity, client.name, nickname, other_nick.away_message))
         else:
-            other.send(IRCMessage.private_message(client.identity, nickname, text))
+            other.send(IRCMessage.private_message(client.identity, nickname, msg.args[1], tags=_client_tags(msg.tags)))
 
     def ping(self, client):
         client.send(IRCMessage.ping(self.host))

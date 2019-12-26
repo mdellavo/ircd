@@ -3,7 +3,7 @@ import asyncio
 import logging
 
 from .message import Prefix
-from .message import parsemsg, TERMINATOR
+from .message import IRCMessage, TERMINATOR
 
 PING_INTERVAL = 60
 PING_GRACE = 5
@@ -85,6 +85,9 @@ class Client:
         for cap in caps:
             if cap not in self.capabilities:
                 self.capabilities.append(cap)
+    @property
+    def has_message_tags(self):
+        return "message-tags" in self.capabilities
 
 
 async def readline(stream):
@@ -92,7 +95,7 @@ async def readline(stream):
 
 
 async def write_message(client, stream, message):
-    line = message.format() + TERMINATOR
+    line = message.format(with_tags=client.has_message_tags) + TERMINATOR
     bytes = line.encode()
     stream.write(bytes)
     await stream.drain()
@@ -188,7 +191,7 @@ class Server:
                 log.info("error reading from: %s", client_address)
                 break
 
-            message = parsemsg(line)
+            message = IRCMessage.parse(line)
             log.debug("read from %s: %s", client_address, message)
             await incoming.put((client, message))
             if not start_writer:

@@ -684,14 +684,14 @@ async def test_capabilities():
 
         await send(writer, [
             "CAP LS",
-            "CAP REQ :multi-prefix sasl",
+            "CAP REQ :foo bar baz",
         ])
 
         resp = await readall(reader)
         print(resp)
         assert resp == [
-            ':localhost CAP * LS :',
-            ':localhost CAP * NAK :multi-prefix sasl',
+            ':localhost CAP * LS :message-tags',
+            ':localhost CAP * NAK :foo bar baz',
         ]
         await ident(reader, writer, irc, "foo")
         client = irc.lookup_client("foo")
@@ -716,3 +716,35 @@ async def test_capabilities():
         await ident(reader, writer, irc, "foo")
         client = irc.lookup_client("foo")
         assert client.capabilities == ["foo"]
+
+
+@pytest.mark.asyncio
+async def test_message_tags():
+    async with server_conn() as (irc, reader, writer):
+
+        # no tags cap
+        await ident(reader, writer, irc, "foo")
+        await send(writer, [
+            "@aaa=bbb;ccc;example.com/ddd=eee PRIVMSG foo :Hello",
+        ])
+        resp = await readall(reader)
+        assert resp == [
+            ':foo!foo@localhost PRIVMSG foo :Hello'
+        ]
+
+        # enable tags cap
+        await send(writer, [
+            "CAP REQ :message-tags",
+        ])
+        resp = await readall(reader)
+        assert resp == [
+            ':localhost CAP foo ACK :message-tags'
+        ]
+
+        await send(writer, [
+            "@aaa=bbb;ccc;+example.com/ddd=eee PRIVMSG foo :Hello",
+        ])
+        resp = await readall(reader)
+        assert resp == [
+            '@+example.com/ddd=eee :foo!foo@localhost PRIVMSG foo :Hello'
+        ]

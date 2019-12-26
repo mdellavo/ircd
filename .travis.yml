@@ -1,9 +1,0 @@
-
-language: python
-
-before_install:
-  - docker build -t mdellavo/ircd .
-  - docker run -v $PWD:/home/ircd mdellavo/ircd python3.8 -m pytest -vx test_ircd.py
-
-services:
-  - docker

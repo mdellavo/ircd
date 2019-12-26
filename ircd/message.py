@@ -9,8 +9,12 @@ def parsemsg(s):
     Breaks a message from an IRC server into its prefix, command, and arguments.
     """
     prefix = ''
+    tags = ''
     if not s:
         raise ValueError("Empty line.")
+    if s[0] == "@":
+        all_tags, s = s[1:].split(' ', 1)
+        tags = all_tags.split(";")
     if s[0] == ':':
         prefix, s = s[1:].split(' ', 1)
     if s.find(' :') != -1:
@@ -21,7 +25,7 @@ def parsemsg(s):
         args = s.split()
     command = args.pop(0)
 
-    return prefix, command, args
+    return tags, prefix, command, args
 
 
 class Prefix:
@@ -48,32 +52,33 @@ class Prefix:
     def from_parts(cls, nickname, user, host):
         return cls(u"{}!{}@{}".format(nickname, user, host))
 
-    def to_dict(self):
-        rv = {"host": self.host}
-        if self.nickname:
-            rv["nick"] = self.nickname
-        if self.user:
-            rv["user"] = self.user
-        return rv
+
+class Tag:
+    def __init__(self, tag):
+        self.tag = tag
+        self.is_client_tag = tag[0] == "+"
+        if self.is_client_tag:
+            tag = tag[1:]
+
+        parts = tag.split("=", 1)
+        self.name = parts[0]
+        self.value = parts[1] if len(parts) > 1 else None
+
+    def __str__(self):
+        return "{}<tag={}>".format(self.__class__.__name__, self.tag)
 
 
 class IRCMessage:
-    def __init__(self, prefix, command, *args):
+    def __init__(self, prefix, command, *args, tags=None):
         self.prefix = prefix
         self.command = command
-        self.args = [args for args in args if args]
+        self.args = [arg for arg in args if arg]
+        self.tags = [Tag(tag) for tag in tags] if tags else None
 
     def __str__(self):
-        return "{}<command={}, args={}, prefix={}>".format(self.__class__.__name__, self.command, self.args, self.prefix)
+        return "{}<command={}, args={}, prefix={}, tags={}>".format(self.__class__.__name__, self.command, self.args, self.prefix, self.tags)
 
-    def to_dict(self):
-        return {
-            "prefix": self.prefix.to_dict() if self.prefix else None,
-            "command": self.command,
-            "args": self.args,
-        }
-
-    def format(self):
+    def format(self, with_tags=False):
         parts = []
         if self.prefix:
             parts.append(":" + str(self.prefix))
@@ -86,7 +91,15 @@ class IRCMessage:
             if tail:
                 parts.append(":" + str(tail))
         rv = " ".join(parts)
+        if with_tags and self.tags:
+            tags = ";".join([tag.tag for tag in self.tags])
+            rv = "@" + tags + " " + rv
         return rv
+
+    @classmethod
+    def parse(cls, s):
+        tags, prefix, command, args = parsemsg(s)
+        return cls(prefix, command, *args, tags=tags)
 
     @classmethod
     def error_invalid_cap_subcommand(cls, prefix, nickname, command):
@@ -238,8 +251,8 @@ class IRCMessage:
         return cls(prefix, "PART", *args)
 
     @classmethod
-    def private_message(cls, prefix, target, msg):
-        return cls(prefix, "PRIVMSG", target, msg)
+    def private_message(cls, prefix, target, msg, tags=None):
+        return cls(prefix, "PRIVMSG", target, msg, tags=tags)
 
     @classmethod
     def ping(cls, server):
