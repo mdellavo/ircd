@@ -1,6 +1,11 @@
 import string
+import datetime
 
 TERMINATOR = "\r\n"
+
+
+def utcnow():
+    return datetime.datetime.utcnow()
 
 
 # https://stackoverflow.com/questions/930700/python-parsing-irc-messages
@@ -56,13 +61,11 @@ class Prefix:
 class Tag:
     def __init__(self, tag):
         self.tag = tag
-        self.is_client_tag = tag[0] == "+"
-        if self.is_client_tag:
-            tag = tag[1:]
 
         parts = tag.split("=", 1)
         self.name = parts[0]
         self.value = parts[1] if len(parts) > 1 else None
+        self.is_client_tag = self.name[0] == "+"
 
     def __str__(self):
         return "{}<tag={}>".format(self.__class__.__name__, self.tag)
@@ -73,12 +76,16 @@ class IRCMessage:
         self.prefix = prefix
         self.command = command
         self.args = [arg for arg in args if arg]
-        self.tags = [Tag(tag) for tag in tags] if tags else None
+
+        self.tags = {}
+        if tags:
+            self.tags.update({t.name: t for t in [Tag(tag) for tag in tags]})
+        self.time = utcnow()
 
     def __str__(self):
         return "{}<command={}, args={}, prefix={}, tags={}>".format(self.__class__.__name__, self.command, self.args, self.prefix, self.tags)
 
-    def format(self, with_tags=False):
+    def format(self, with_tags=False, with_time=False):
         parts = []
         if self.prefix:
             parts.append(":" + str(self.prefix))
@@ -91,10 +98,18 @@ class IRCMessage:
             if tail:
                 parts.append(":" + str(tail))
         rv = " ".join(parts)
+
+        if with_time:
+            self.tags["time"] = Tag("time={}Z".format(self.time.isoformat()))
+
         if with_tags and self.tags:
-            tags = ";".join([tag.tag for tag in self.tags])
+            tags = ";".join([tag.tag for tag in self.tags.values()])
             rv = "@" + tags + " " + rv
         return rv
+
+    @property
+    def client_tags(self):
+        return [tag.tag for tag in self.tags.values() if tag.is_client_tag]
 
     @classmethod
     def parse(cls, s):

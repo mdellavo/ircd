@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
 from unittest import mock
-
+import datetime
 
 import pytest
 
@@ -47,6 +47,8 @@ async def readall(reader):
     while True:
         try:
             b = await asyncio.wait_for(reader.readline(), .1)
+            if not b:
+                break
         except asyncio.exceptions.TimeoutError:
             break
         line = b.strip().decode()
@@ -690,7 +692,7 @@ async def test_capabilities():
         resp = await readall(reader)
         print(resp)
         assert resp == [
-            ':localhost CAP * LS :message-tags',
+            ':localhost CAP * LS :message-tags server-time',
             ':localhost CAP * NAK :foo bar baz',
         ]
         await ident(reader, writer, irc, "foo")
@@ -748,3 +750,30 @@ async def test_message_tags():
         assert resp == [
             '@+example.com/ddd=eee :foo!foo@localhost PRIVMSG foo :Hello'
         ]
+
+
+@pytest.mark.asyncio
+async def test_server_time():
+
+    time = datetime.datetime(2019, 12, 27, 1, 2, 3)
+
+    async with server_conn() as (irc, reader, writer):
+        await ident(reader, writer, irc, "foo")
+        with mock.patch("ircd.message.utcnow") as time_patch:
+            time_patch.return_value = time
+
+            # enable tags cap
+            await send(writer, [
+                "CAP REQ :message-tags server-time",
+            ])
+            resp = await readall(reader)
+            assert resp == [
+                '@time=2019-12-27T01:02:03Z :localhost CAP foo ACK :message-tags server-time'
+            ]
+            await send(writer, [
+                "@aaa=bbb;ccc;+example.com/ddd=eee  PRIVMSG foo :Hello",
+            ])
+            resp = await readall(reader)
+            assert resp == [
+                '@+example.com/ddd=eee;time=2019-12-27T01:02:03Z :foo!foo@localhost PRIVMSG foo :Hello'
+            ]

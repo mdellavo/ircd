@@ -18,11 +18,8 @@ log = logging.getLogger(__name__)
 
 CAPABILITIES = [
     "message-tags",
+    "server-time",
 ]
-
-
-def _client_tags(tags):
-    return [tag.tag for tag in tags if tag.is_client_tag] if tags else None
 
 
 class IRC:
@@ -255,7 +252,7 @@ class IRC:
         if not channel:
             raise IRCError(IRCMessage.error_no_such_channel(self.host, client.name, channel_name))
 
-        self.send_to_channel(client, channel, IRCMessage.private_message(client.identity, channel_name, msg.args[1], tags=_client_tags(msg.tags)), skip_self=True)
+        self.send_to_channel(client, channel, IRCMessage.private_message(client.identity, channel_name, msg.args[1], tags=msg.client_tags), skip_self=True)
 
     def send_private_message_to_client(self, client, nickname, msg):
         other = self.lookup_client(nickname)
@@ -266,7 +263,7 @@ class IRC:
         if other_nick.is_away:
             client.send(IRCMessage.reply_away(other.identity, client.name, nickname, other_nick.away_message))
         else:
-            other.send(IRCMessage.private_message(client.identity, nickname, msg.args[1], tags=_client_tags(msg.tags)))
+            other.send(IRCMessage.private_message(client.identity, nickname, msg.args[1], tags=msg.client_tags))
 
     def ping(self, client):
         client.send(IRCMessage.ping(self.host))

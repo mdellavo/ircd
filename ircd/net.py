@@ -5,7 +5,7 @@ import logging
 from .message import Prefix
 from .message import IRCMessage, TERMINATOR
 
-PING_INTERVAL = 60
+PING_INTERVAL = 5
 PING_GRACE = 5
 IDENT_TIMEOUT = 10
 
@@ -89,13 +89,17 @@ class Client:
     def has_message_tags(self):
         return "message-tags" in self.capabilities
 
+    @property
+    def has_server_time(self):
+        return "server-time" in self.capabilities
+
 
 async def readline(stream):
     return (await stream.readuntil(TERMINATOR.encode())).decode().strip()
 
 
 async def write_message(client, stream, message):
-    line = message.format(with_tags=client.has_message_tags) + TERMINATOR
+    line = message.format(with_tags=client.has_message_tags, with_time=client.has_server_time) + TERMINATOR
     bytes = line.encode()
     stream.write(bytes)
     await stream.drain()
