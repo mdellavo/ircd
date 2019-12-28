@@ -270,6 +270,10 @@ class IRCMessage:
         return cls(prefix, "PRIVMSG", target, msg, tags=tags)
 
     @classmethod
+    def tag_message(cls, prefix, target, tags):
+        return cls(prefix, "TAGMSG", target, tags=tags)
+
+    @classmethod
     def ping(cls, server):
         return cls(server, "PING", server)
 

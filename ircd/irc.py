@@ -235,7 +235,7 @@ class IRC:
         self.send_to_channel(client, channel, IRCMessage.part(client.identity, name, message=message))
         channel.part(nickname)
 
-    def send_to_channel(self, client, channel, msg, skip_self=False):
+    def send_to_channel(self, client, channel, msg, skip_self=False, caps=None):
         nickname = self.get_nickname(client.name)
         if nickname not in channel.members:
             raise IRCError(IRCMessage.error_not_in_channel(self.host, client.name))
@@ -244,6 +244,12 @@ class IRC:
             if skip_self and member.nickname == client.name:
                 continue
             member_client = self.lookup_client(member.nickname)
+
+            if caps:
+                missing = [cap for cap in caps if cap not in client.capabilities]
+                if missing:
+                    continue
+
             if member_client:
                 member_client.send(msg)
 
@@ -264,6 +270,20 @@ class IRC:
             client.send(IRCMessage.reply_away(other.identity, client.name, nickname, other_nick.away_message))
         else:
             other.send(IRCMessage.private_message(client.identity, nickname, msg.args[1], tags=msg.client_tags))
+
+    def send_tag_message_to_channel(self, client, channel_name, msg):
+        channel = self.get_channel(channel_name)
+        if not channel:
+            raise IRCError(IRCMessage.error_no_such_channel(self.host, client.name, channel_name))
+
+        self.send_to_channel(client, channel, IRCMessage.tag_message(client.identity, channel_name, tags=msg.client_tags), skip_self=True, caps=["message-tags"])
+
+    def send_tag_message_to_client(self, client, nickname, msg):
+        other = self.lookup_client(nickname)
+        if not other:
+            raise IRCError(IRCMessage.error_no_such_nickname(self.host, client.name, nickname))
+        if "message-tags" in other.capabilities:
+            other.send(IRCMessage.tag_message(client.identity, nickname, tags=msg.client_tags))
 
     def ping(self, client):
         client.send(IRCMessage.ping(self.host))

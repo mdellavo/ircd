@@ -777,3 +777,75 @@ async def test_server_time():
             assert resp == [
                 '@+example.com/ddd=eee;time=2019-12-27T01:02:03Z :foo!foo@localhost PRIVMSG foo :Hello'
             ]
+
+
+@pytest.mark.asyncio
+async def test_tagmsg_channel():
+    async with server_conn() as (irc, reader_a, writer_a), connect() as (reader_b, writer_b):
+        await ident(reader_a, writer_a, irc, "foo")
+        await join(reader_a, writer_a, irc, "foo", "#")
+        await send(writer_a, [
+            "CAP REQ :message-tags",
+        ])
+        resp = await readall(reader_a)
+        assert resp == [
+            ':localhost CAP foo ACK :message-tags'
+        ]
+
+        await ident(reader_b, writer_b, irc, "bar")
+        await join(reader_b, writer_b, irc, "bar", "#")
+        await send(writer_b, [
+            "CAP REQ :message-tags",
+        ])
+        resp = await readall(reader_b)
+        assert resp == [
+            ':localhost CAP bar ACK :message-tags'
+        ]
+
+        await send(writer_a, [
+            "@+example.com/ddd=eee TAGMSG #"
+        ])
+
+        resp = await readall(reader_b)
+        assert resp == [
+            "@+example.com/ddd=eee :foo!foo@localhost TAGMSG :#"
+        ]
+
+
+@pytest.mark.asyncio
+async def test_tagmsg_client():
+    async with server_conn() as (irc, reader_a, writer_a), connect() as (reader_b, writer_b):
+        await ident(reader_a, writer_a, irc, "foo")
+        await send(writer_a, [
+            "CAP REQ :message-tags",
+        ])
+        resp = await readall(reader_a)
+        assert resp == [
+            ':localhost CAP foo ACK :message-tags'
+        ]
+
+        await ident(reader_b, writer_b, irc, "bar")
+
+        await send(writer_a, [
+            "@+example.com/ddd=eee TAGMSG bar"
+        ])
+        # no tagmsg
+        resp = await readall(reader_b)
+        assert resp == []
+
+        await send(writer_b, [
+            "CAP REQ :message-tags",
+        ])
+        resp = await readall(reader_b)
+        assert resp == [
+            ':localhost CAP bar ACK :message-tags'
+        ]
+
+        await send(writer_a, [
+            "@+example.com/ddd=eee TAGMSG bar"
+        ])
+
+        resp = await readall(reader_b)
+        assert resp == [
+            "@+example.com/ddd=eee :foo!foo@localhost TAGMSG :bar"
+        ]
