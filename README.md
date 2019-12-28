@@ -2,18 +2,22 @@
 
 a small IRCd in python
 
+## Features
+    - basic IRCv3 support: message-tags, server-time
+    - asyncio based event loop
+
 ## Running
 
 with docker:
 ```
 # Run server
 docker build -t mdellavo/ircd .
-docker run --rm -i -t  -v $PWD:/home/ircd -p 127.0.0.1:8888:8888 -p 127.0.0.1:8887:8887 mdellavo/ircd
+docker run --rm -i -t  -v $PWD:/home/ircd -p 127.0.0.1:9999:9999 mdellavo/ircd
 
 # Run tests
 docker run --rm -i -t  -v $PWD:/home/ircd mdellavo/ircd pytest
 
-# Start up 2 nodes and link them
+# Start up 2 nodes and link them, also startup thelounge to connect
 docker-compose up
 ```
 
