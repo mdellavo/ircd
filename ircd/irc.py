@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 CAPABILITIES = [
     "message-tags",
     "server-time",
+    "message-ids",
 ]
 
 

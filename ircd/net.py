@@ -93,13 +93,21 @@ class Client:
     def has_server_time(self):
         return "server-time" in self.capabilities
 
+    @property
+    def has_message_id(self):
+        return "message-ids" in self.capabilities
+
 
 async def readline(stream):
     return (await stream.readuntil(TERMINATOR.encode())).decode().strip()
 
 
 async def write_message(client, stream, message):
-    line = message.format(with_tags=client.has_message_tags, with_time=client.has_server_time) + TERMINATOR
+    line = message.format(
+        with_tags=client.has_message_tags,
+        with_time=client.has_server_time,
+        with_id=client.has_message_id,
+    ) + TERMINATOR
     bytes = line.encode()
     stream.write(bytes)
     await stream.drain()

@@ -692,7 +692,7 @@ async def test_capabilities():
         resp = await readall(reader)
         print(resp)
         assert resp == [
-            ':localhost CAP * LS :message-tags server-time',
+            ':localhost CAP * LS :message-tags server-time message-ids',
             ':localhost CAP * NAK :foo bar baz',
         ]
         await ident(reader, writer, irc, "foo")
@@ -849,3 +849,20 @@ async def test_tagmsg_client():
         assert resp == [
             "@+example.com/ddd=eee :foo!foo@localhost TAGMSG :bar"
         ]
+
+
+@pytest.mark.asyncio
+async def test_message_ids():
+    async with server_conn() as (irc, reader, writer):
+        await ident(reader, writer, irc, "foo")
+        with mock.patch("ircd.message.generate_id") as id_patch:
+            id_patch.return_value = "XXX"
+
+            await send(writer, [
+                "CAP REQ :message-tags message-ids",
+            ])
+            resp = await readall(reader)
+            print(resp)
+            assert resp == [
+                '@msgid=XXX :localhost CAP foo ACK :message-tags message-ids'
+            ]
