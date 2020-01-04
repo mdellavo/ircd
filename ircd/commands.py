@@ -102,7 +102,6 @@ class Handler:
                 self.client.send(IRCMessage.error_sasl_fail(self.irc.host, self.client.name))
                 return
 
-
             parts = [part.decode().strip() for part in auth.split(b'\x00')]
             if len(parts) < 3:
                 self.client.send(IRCMessage.error_sasl_fail(self.irc.host, self.client.name))

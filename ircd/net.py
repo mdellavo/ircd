@@ -130,7 +130,7 @@ class Server:
         self.running = asyncio.Event()
         self.ping_interval = ping_interval
 
-    async def run(self, client_listen_addr, client_listen_port, link_listen_addr=None, link_listen_port=None):
+    async def run(self, client_listen_addr, client_listen_port, link_listen_addr=None, link_listen_port=None, peer_addr=None, peer_port=None):
         log.info("Server %s start", self.irc.host)
         incoming = asyncio.Queue()
         irc_processor = asyncio.create_task(self._irc_processor(incoming))
@@ -142,8 +142,8 @@ class Server:
             link_listener = asyncio.create_task(self._listener(link_listen_addr, link_listen_port, True, incoming))
             coros.append(link_listener)
 
-        if False:
-            peer_conn = asyncio.create_task(self.connect())
+        if peer_addr and peer_port:
+            peer_conn = asyncio.create_task(self.connect(peer_addr, peer_port, True))
             coros.append(peer_conn)
 
         await asyncio.gather(*coros)
@@ -249,5 +249,5 @@ class Server:
 
     async def connect(self, addr, port, incoming):
         log.info("linking to peer %s:%s", addr, port)
-        async with asyncio.connect() as stream:
-            await self._on_connect(stream, True, incoming)
+        reader, writer = await asyncio.open_connection(addr, port)
+        await self._on_connect(reader, writer, True, incoming)

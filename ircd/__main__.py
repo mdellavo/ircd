@@ -27,6 +27,11 @@ def parse_address(s):
     return host, int(port)
 
 
+async def resolve_address(host, port):
+    addresses = await asyncio.get_event_loop().getaddrinfo(host, port)
+    return addresses[0][-1][0] if addresses else host
+
+
 async def main(args):
     addr, port = args.listen
     irc = IRC(args.host)
@@ -44,6 +49,8 @@ async def main(args):
         client_listen_port=args.listen[1],
         link_listen_addr=args.link[0],
         link_listen_port=args.link[1],
+        peer_addr=await resolve_address(args.peer[0], args.peer[1]) if args.peer else None,
+        peer_port=args.peer[1] if args.peer else None,
     )
 
 

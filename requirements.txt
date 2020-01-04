@@ -1,3 +1,4 @@
+websockets
 pytest
 pytest-asyncio
 pytest-timeout
