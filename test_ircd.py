@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 from unittest import mock
 import datetime
+import base64
 
 import pytest
 
@@ -109,7 +110,8 @@ async def part(reader, writer, irc, nickname, chan, message=None):
 
     channel = irc.get_channel(chan)
     nickname = irc.get_nickname(nickname)
-    assert nickname not in channel.members
+    if nickname and channel:
+        assert nickname not in channel.members
 
 
 @pytest.mark.asyncio
@@ -157,6 +159,10 @@ async def test_join_part():
         await part(reader, writer, irc, "foo", "#", message="byebye")
         assert channel.members == []
         assert [chan.name for chan in nickname.channels] == []
+
+        await join(reader, writer, irc, "foo", "#")
+
+    assert "#" not in irc.channels
 
 
 @pytest.mark.asyncio
@@ -692,7 +698,7 @@ async def test_capabilities():
         resp = await readall(reader)
         print(resp)
         assert resp == [
-            ':localhost CAP * LS :message-tags server-time message-ids',
+            ':localhost CAP * LS :message-tags server-time message-ids sasl',
             ':localhost CAP * NAK :foo bar baz',
         ]
         await ident(reader, writer, irc, "foo")
@@ -866,3 +872,78 @@ async def test_message_ids():
             assert resp == [
                 '@msgid=XXX :localhost CAP foo ACK :message-tags message-ids'
             ]
+
+
+@pytest.mark.asyncio
+async def test_sasl():
+    password = base64.b64encode(b"foo \x00 bar \x00 baz ")
+    bad_pass = base64.b64encode(b"qux \x00 qux \x00 qux ")
+
+    async with server_conn() as (irc, reader_a, writer_a), connect() as (reader_b, writer_b):
+
+        await send(writer_a, [
+            "CAP REQ :sasl",
+        ])
+        resp = await readall(reader_a)
+        print(resp)
+        assert resp == [
+            ':localhost CAP * ACK :sasl'
+        ]
+
+        await send(writer_a, [
+            "AUTHENTICATE PLAIN",
+        ])
+        resp = await readall(reader_a)
+        print(resp)
+        assert resp == [
+            ':localhost AUTHENTICATE +'
+        ]
+
+        # bad auth
+        await send(writer_a, [
+            "AUTHENTICATE xxx"
+        ])
+        resp = await readall(reader_a)
+        print(resp)
+        assert resp == [
+            ':localhost 904 * :SASL authentication failed',
+        ]
+
+        # good auth
+        await send(writer_a, [
+            "AUTHENTICATE " + password.decode("utf-8"),
+        ])
+        resp = await readall(reader_a)
+        print(resp)
+        assert resp == [
+            ':localhost 900 * :you are now logged in',
+            ':localhost 903 * :SASL authentication successful'
+        ]
+
+        await send(writer_b, [
+            "CAP REQ :sasl",
+        ])
+        resp = await readall(reader_b)
+        print(resp)
+        assert resp == [
+            ':localhost CAP * ACK :sasl'
+        ]
+
+        await send(writer_b, [
+            "AUTHENTICATE PLAIN",
+        ])
+        resp = await readall(reader_b)
+        print(resp)
+        assert resp == [
+            ':localhost AUTHENTICATE +'
+        ]
+
+        # bad auth
+        await send(writer_b, [
+            "AUTHENTICATE " + bad_pass.decode(),
+        ])
+        resp = await readall(reader_b)
+        print(resp)
+        assert resp == [
+            ':localhost 904 * :SASL authentication failed',
+        ]

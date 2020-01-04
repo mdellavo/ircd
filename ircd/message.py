@@ -144,6 +144,26 @@ class IRCMessage:
         return cls(prefix, "CAP", nickname or "*", "NAK", " ".join(capabilities))
 
     @classmethod
+    def error_sasl_mechanism(cls, prefix, nickname):
+        return cls(prefix, "908", nickname or "*", "PLAIN", "are available sasl mechanisms")
+
+    @classmethod
+    def sasl_logged_in(cls, prefix, nickname, identity, account):
+        return cls(prefix, "900", nickname or "*", "you are now logged in")
+
+    @classmethod
+    def sasl_success(cls, prefix, nickname):
+        return cls(prefix, "903", nickname or "*", "SASL authentication successful")
+
+    @classmethod
+    def error_sasl_fail(cls, prefix, nickname):
+        return cls(prefix, "904", nickname or "*", "SASL authentication failed")
+
+    @classmethod
+    def sasl_continue(cls, prefix):
+        return cls(prefix, "AUTHENTICATE +")
+
+    @classmethod
     def reply_welcome(cls, prefix, target, nickname, user, hostname):
         return cls(prefix, "001", target,
                    "Welcome to the Internet Relay Network {}!{}@{}".format(nickname, user, hostname))

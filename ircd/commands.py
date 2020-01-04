@@ -1,4 +1,6 @@
 import logging
+import base64
+import binascii
 from functools import wraps
 
 from ircd.message import IRCMessage
@@ -83,6 +85,37 @@ class Handler:
             pass
         else:
             self.client.send(IRCMessage.error_invalid_cap_subcommand(self.irc.host, self.client.name, command))
+
+    def authenticate(self, msg):
+
+        if not self.client.authentication_method:  # initial message
+            if msg.args[0] != "PLAIN":
+                self.client.send(IRCMessage.error_sasl_mechanism(self.irc.host, self.client.name))
+                return
+
+            self.client.authentication_method = msg.args[0]
+            self.client.send(IRCMessage.sasl_continue(self.irc.host))
+        else:  # authentication message
+            try:
+                auth = base64.b64decode(msg.args[0])
+            except binascii.Error:
+                self.client.send(IRCMessage.error_sasl_fail(self.irc.host, self.client.name))
+                return
+
+
+            parts = [part.decode().strip() for part in auth.split(b'\x00')]
+            if len(parts) < 3:
+                self.client.send(IRCMessage.error_sasl_fail(self.irc.host, self.client.name))
+                return
+
+            authzid, authcid, password = parts
+            valid = self.irc.authenticate(self.client.name, authcid, password)
+            if valid:
+                self.client.send(IRCMessage.sasl_logged_in(self.irc.host, self.client.name, self.client.identity, authcid))
+                self.client.send(IRCMessage.sasl_success(self.irc.host, self.client.name))
+            else:
+                self.client.send(IRCMessage.error_sasl_fail(self.irc.host, self.client.name))
+
 
     @validate(identity=True, num_params=1)
     def join(self, msg):

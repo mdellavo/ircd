@@ -5,7 +5,7 @@ import logging
 from .message import Prefix
 from .message import IRCMessage, TERMINATOR
 
-PING_INTERVAL = 5
+PING_INTERVAL = 30
 PING_GRACE = 5
 IDENT_TIMEOUT = 10
 
@@ -36,6 +36,7 @@ class Client:
         # fields if user
         self.user = None
         self.realname = None
+        self.authentication_method = None
 
         self.outgoing = asyncio.Queue()
         self.ping_count = 0
@@ -210,7 +211,8 @@ class Server:
                 writer_task = asyncio.create_task(self._client_writer(client, writer))
                 start_writer = True
         await self._drop_client(client, writer)
-        await writer_task
+        if writer_task:
+            await writer_task
         log.debug("client reader for %s (%s) shutdown", client.address, client.host)
 
     async def _drop_client(self, client, writer):

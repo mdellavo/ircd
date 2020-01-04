@@ -20,6 +20,7 @@ CAPABILITIES = [
     "message-tags",
     "server-time",
     "message-ids",
+    "sasl",
 ]
 
 
@@ -38,6 +39,8 @@ class IRC:
 
         self.nick_client = {}
 
+        self.known_identities = {}
+
     def add_link(self, client, name, hop_count, token, info):
         client.set_server(name, hop_count, token, info)
         if client not in self.links:
@@ -45,6 +48,14 @@ class IRC:
 
     def get_capabilities(self):
         return CAPABILITIES
+
+    def authenticate(self, nickname, identity, password):
+        owner = self.known_identities.get(nickname)
+        if not owner:
+            self.known_identities[nickname] = {"identity": identity, "password": password}
+            return True
+        valid = owner["identity"] == identity and owner["password"] == password
+        return valid
 
     def get_channels(self):
         return self.channels.values()
@@ -148,10 +159,12 @@ class IRC:
         nickname = self.get_nickname(client.name)
         if nickname:
             for channel in nickname.channels:
+                self.part_channel(channel.name, client)
                 try:
                     self.send_to_channel(client, channel, IRCMessage.quit(client.identity, message), skip_self=True)
                 except IRCError:
                     pass
+
             if nickname.nickname in self.nick_client:
                 del self.nick_client[nickname.nickname]
             if nickname.nickname in self.nicknames:
@@ -235,6 +248,8 @@ class IRC:
         nickname = self.get_nickname(client.name)
         self.send_to_channel(client, channel, IRCMessage.part(client.identity, name, message=message))
         channel.part(nickname)
+        if not channel.members:
+            del self.channels[name]
 
     def send_to_channel(self, client, channel, msg, skip_self=False, caps=None):
         nickname = self.get_nickname(client.name)
