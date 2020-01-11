@@ -327,3 +327,19 @@ class IRCMessage:
     @classmethod
     def kick(cls, prefix, channel, nickname, comment=None):
         return cls(prefix, "KICK", channel.name, nickname.nickname, comment)
+
+    @classmethod
+    def reply_no_motd(cls, prefix, target):
+        return cls(prefix, "422", target, "no message of the day")
+
+    @classmethod
+    def reply_start_motd(cls, prefix, target):
+        return cls(prefix, "375", target, "- message of the day -")
+
+    @classmethod
+    def reply_end_motd(cls, prefix, target):
+        return cls(prefix, "376", target, "- end of message -")
+
+    @classmethod
+    def reply_motd(cls, prefix, target, msg):
+        return cls(prefix, "372", target, msg)

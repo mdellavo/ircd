@@ -70,7 +70,10 @@ async def ident(reader, writer, irc, nick):
         ":localhost 002 {} :Your host is {}, running version {}".format(nick, SERVER_NAME, SERVER_VERSION),
 
         ":localhost 003 {} :This server was created {}".format(nick, irc.created),
-        ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION)
+        ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION),
+        ':localhost 375 {} :- message of the day -'.format(nick),
+        ':localhost 372 {} :hello world'.format(nick),
+        ':localhost 376 {} :- end of message -'.format(nick),
     ]
 
 

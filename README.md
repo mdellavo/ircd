@@ -12,7 +12,7 @@ with docker:
 ```
 # Run server
 docker build -t mdellavo/ircd .
-docker run --rm -i -t  -v $PWD:/home/ircd -p 127.0.0.1:9999:9999 mdellavo/ircd
+docker run --rm -i -t  -v $PWD:/home/ircd -p 127.0.0.1:5000:5000 mdellavo/ircd python3.8 -m ircd --listen 0.0.0.0:5000
 
 # Run tests
 docker run --rm -i -t  -v $PWD:/home/ircd mdellavo/ircd pytest

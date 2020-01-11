@@ -30,16 +30,14 @@ class IRC:
         self.running = True
         self.incoming = Queue()
         self.created = datetime.utcnow()
-
         self.clients = {}
         self.links = []
-
         self.channels = {}
         self.nicknames = {}
-
         self.nick_client = {}
-
         self.known_identities = {}
+        self.motd = "hello world"
+        self.operators = []
 
     def add_link(self, client, name, hop_count, token, info):
         client.set_server(name, hop_count, token, info)
@@ -148,6 +146,13 @@ class IRC:
         client.send(IRCMessage.reply_yourhost(self.host, client.name, SERVER_NAME, SERVER_VERSION))
         client.send(IRCMessage.reply_created(self.host, client.name, self.created))
         client.send(IRCMessage.reply_myinfo(self.host, client.name, SERVER_NAME, SERVER_VERSION))
+
+        if self.motd:
+            client.send(IRCMessage.reply_start_motd(self.host, client.name))
+            client.send(IRCMessage.reply_motd(self.host, client.name, self.motd))
+            client.send(IRCMessage.reply_end_motd(self.host, client.name))
+        else:
+            client.send(IRCMessage.reply_no_motd(self.host, client.name))
 
     def drop_client(self, client, message=None):
         if not client.connected:
