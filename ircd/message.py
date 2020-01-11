@@ -301,6 +301,10 @@ class IRCMessage:
         return cls(prefix, "PRIVMSG", target, msg, tags=tags)
 
     @classmethod
+    def notice(cls, prefix, target, msg, tags=None):
+        return cls(prefix, "NOTICE", target, msg, tags=tags)
+
+    @classmethod
     def tag_message(cls, prefix, target, tags):
         return cls(prefix, "TAGMSG", target, tags=tags)
 
@@ -323,7 +327,3 @@ class IRCMessage:
     @classmethod
     def kick(cls, prefix, channel, nickname, comment=None):
         return cls(prefix, "KICK", channel.name, nickname.nickname, comment)
-
-    @classmethod
-    def server(cls, ):
-        pass

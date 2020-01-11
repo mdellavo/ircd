@@ -2,6 +2,11 @@ import time
 import asyncio
 import logging
 
+try:
+    import websockets
+except ImportError:
+    websockets = None
+
 from .message import Prefix
 from .message import IRCMessage, TERMINATOR
 
@@ -115,10 +120,9 @@ async def write_message(client, stream, message):
     log.debug("wrote to %s: %s", client, bytes)
 
 
-async def resolve_peerinfo(writer):
-    client_address, client_port = writer.get_extra_info('peername')
-    client_host, _ = await asyncio.get_event_loop().getnameinfo((client_address, client_port))
-    return client_address, client_port, client_host
+async def resolve_peerinfo(address, port):
+    client_host, _ = await asyncio.get_event_loop().getnameinfo((address, port))
+    return address, port, client_host
 
 
 class Server:
@@ -130,7 +134,10 @@ class Server:
         self.running = asyncio.Event()
         self.ping_interval = ping_interval
 
-    async def run(self, client_listen_addr, client_listen_port, link_listen_addr=None, link_listen_port=None, peer_addr=None, peer_port=None):
+    async def run(self, client_listen_addr, client_listen_port,
+                  link_listen_addr=None, link_listen_port=None,
+                  peer_addr=None, peer_port=None,
+                  ws_addr=None, ws_port=None):
         log.info("Server %s start", self.irc.host)
         incoming = asyncio.Queue()
         irc_processor = asyncio.create_task(self._irc_processor(incoming))
@@ -145,6 +152,15 @@ class Server:
         if peer_addr and peer_port:
             peer_conn = asyncio.create_task(self.connect(peer_addr, peer_port, True))
             coros.append(peer_conn)
+
+        if websockets and ws_addr and ws_port:
+            log.info("starting ws server on %s:%s", ws_addr, ws_port)
+
+            async def _ws_connect(ws, path):
+                await self._on_ws_connect(ws, path, incoming)
+
+            ws_server = websockets.serve(_ws_connect, ws_addr, ws_port)
+            coros.append(ws_server)
 
         await asyncio.gather(*coros)
 
@@ -189,7 +205,8 @@ class Server:
         log.debug("client writer for %s (%s) shutdown", client.address, client.host)
 
     async def _on_connect(self, reader, writer, link, incoming):
-        client_address, client_port, client_host = await resolve_peerinfo(writer)
+        host, port = writer.get_extra_info('peername')
+        client_address, client_port, client_host = await resolve_peerinfo(host, port)
         log.info("connection from %s (%s)", client_address, client_host)
 
         client = Client(client_address, client_host, link=link)
@@ -214,6 +231,31 @@ class Server:
         if writer_task:
             await writer_task
         log.debug("client reader for %s (%s) shutdown", client.address, client.host)
+
+    async def _on_ws_connect(self, ws, path, incoming):
+        host, port = ws.remote_address
+        client_address, client_port, client_host = await resolve_peerinfo(host, port)
+        log.info("ws connection from %s (%s)", client_address, client_host)
+        client = Client(client_address, client_host)
+        #self.clients.append((client, None))
+
+        async def _writer():
+            while ws.open:
+                message = await client.outgoing.get()
+
+                if message:
+                    line = message.format(
+                        with_tags=client.has_message_tags,
+                        with_time=client.has_server_time,
+                        with_id=client.has_message_id,
+                    )
+                    await ws.send(line)
+
+        writer_task = asyncio.create_task(_writer())
+        async for line in ws:
+            message = IRCMessage.parse(line)
+            log.debug("ws read from %s: %s", client_address, message)
+            await incoming.put((client, message))
 
     async def _drop_client(self, client, writer):
         self.irc.drop_client(client, QUIT_MESSAGE)

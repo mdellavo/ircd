@@ -287,6 +287,20 @@ class IRC:
         else:
             other.send(IRCMessage.private_message(client.identity, nickname, msg.args[1], tags=msg.client_tags))
 
+    def send_notice_to_channel(self, client, channel_name, msg):
+        channel = self.get_channel(channel_name)
+        if not channel:
+            raise IRCError(IRCMessage.error_no_such_channel(self.host, client.name, channel_name))
+
+        self.send_to_channel(client, channel, IRCMessage.notice(client.identity, channel_name, msg.args[1], tags=msg.client_tags), skip_self=True)
+
+    def send_notice_to_client(self, client, nickname, msg):
+        other = self.lookup_client(nickname)
+        if not other:
+            raise IRCError(IRCMessage.error_no_such_nickname(self.host, client.name, nickname))
+
+        other.send(IRCMessage.notice(client.identity, nickname, msg.args[1], tags=msg.client_tags))
+
     def send_tag_message_to_channel(self, client, channel_name, msg):
         channel = self.get_channel(channel_name)
         if not channel:

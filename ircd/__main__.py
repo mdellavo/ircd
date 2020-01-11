@@ -51,6 +51,8 @@ async def main(args):
         link_listen_port=args.link[1],
         peer_addr=await resolve_address(args.peer[0], args.peer[1]) if args.peer else None,
         peer_port=args.peer[1] if args.peer else None,
+        ws_addr=args.ws[0] if args.ws else None,
+        ws_port=args.ws[1] if args.ws else None,
     )
 
 
@@ -60,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("--listen", help="listen address", type=parse_address, default=CLIENT_LISTEN_ADDRESS)
     parser.add_argument("--link", help="link address", type=parse_address, default=LINK_LISTEN_ADDRESS)
     parser.add_argument("--peer", help="peer address", type=parse_address)
+    parser.add_argument("--ws", help="websocket listen address", type=parse_address)
     parser.add_argument("--verbose", help="verbose mode", action="store_true")
     args = parser.parse_args(sys.argv[1:])
 

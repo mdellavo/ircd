@@ -115,7 +115,6 @@ class Handler:
             else:
                 self.client.send(IRCMessage.error_sasl_fail(self.irc.host, self.client.name))
 
-
     @validate(identity=True, num_params=1)
     def join(self, msg):
         chan_name = msg.args[0]
@@ -136,6 +135,17 @@ class Handler:
             self.irc.send_private_message_to_channel(self.client, target, msg)
         elif self.irc.has_nickname(target):
             self.irc.send_private_message_to_client(self.client, target, msg)
+        else:
+            raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, self.client.name, target))
+
+    @validate(identity=True, num_params=2)
+    def notice(self, msg):
+        target = msg.args[0]
+
+        if self.irc.has_channel(target):
+            self.irc.send_notice_to_channel(self.client, target, msg)
+        elif self.irc.has_nickname(target):
+            self.irc.send_notice_to_client(self.client, target, msg)
         else:
             raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, self.client.name, target))
 

@@ -254,6 +254,41 @@ async def test_privmsg_client():
 
 
 @pytest.mark.asyncio
+async def test_notice_client():
+    async with server_conn() as (irc, reader_a, writer_a), connect() as (reader_b, writer_b):
+        await ident(reader_a, writer_a, irc, "foo")
+        await ident(reader_b, writer_b, irc, "bar")
+
+        await send(writer_a, [
+            "NOTICE bar :hello world"
+        ])
+
+        assert await readall(reader_b) == [
+            ":foo!foo@localhost NOTICE bar :hello world"
+        ]
+
+@pytest.mark.asyncio
+async def test_notice_channel():
+    async with server_conn() as (irc, reader_a, writer_a), connect() as (reader_b, writer_b):
+        await ident(reader_a, writer_a, irc, "foo")
+        await join(reader_a, writer_a, irc, "foo", "#")
+
+        await ident(reader_b, writer_b, irc, "bar")
+        await join(reader_b, writer_b, irc, "bar", "#")
+
+        await send(writer_a, [
+            "NOTICE # :hello world"
+        ])
+        assert await readall(reader_a) == [
+            ":bar!bar@localhost JOIN :#"
+        ]  # no reply to self
+
+        assert await readall(reader_b) == [
+            ":foo!foo@localhost NOTICE # :hello world"
+        ]
+
+
+@pytest.mark.asyncio
 async def test_user_mode():
     async with server_conn() as (irc, reader, writer):
         await ident(reader, writer, irc, "foo")
