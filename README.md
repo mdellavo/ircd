@@ -3,8 +3,9 @@
 a small IRCd in python
 
 ## Features
-    - basic IRCv3 support: message-tags, server-time
+    - basic IRCv3 support
     - asyncio based event loop
+    - tests!
 
 ## Running
 
@@ -20,6 +21,48 @@ docker run --rm -i -t  -v $PWD:/home/ircd mdellavo/ircd pytest
 # Start up 2 nodes and link them, also startup thelounge to connect
 docker-compose up
 ```
+
+## Supported Commands
+- [x] CAP
+- [x] AUTHENTICATE (simple only)
+- [x] NICK 
+- [x] USER
+- [x] QUIT
+- [x] JOIN
+- [x] PART
+- [x] TOPIC
+- [x] NAMES
+- [x] INVITE
+- [x] LIST
+- [x] AWAY
+- [x] MODE
+- [x] TAGMSG
+- [x] SERVER
+- [x] KICK
+- [x] NOTICE
+- [x] PRIVMSG
+- [ ] ISUPPORT
+- [ ] LUSERS
+- [ ] MOTD
+- [ ] VERSION
+- [ ] ADMIN
+- [ ] TIME
+- [ ] STATS
+- [ ] INFO
+- [ ] OPERATOR
+- [ ] CONNECT
+- [ ] MAP
+- [ ] WALLOPS
+
+## Supported Capabilities
+- [x] sasl
+- [x] message-ids
+- [x] message-tags
+- [x] server-ime
+
+## References
+
+- https://modern.ircdocs.horse/
 
 ## Author
 
