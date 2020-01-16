@@ -43,7 +43,7 @@ docker-compose up
 - [x] PRIVMSG
 - [ ] ISUPPORT
 - [ ] LUSERS
-- [ ] MOTD
+- [x] MOTD
 - [ ] VERSION
 - [ ] ADMIN
 - [ ] TIME

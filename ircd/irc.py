@@ -146,7 +146,9 @@ class IRC:
         client.send(IRCMessage.reply_yourhost(self.host, client.name, SERVER_NAME, SERVER_VERSION))
         client.send(IRCMessage.reply_created(self.host, client.name, self.created))
         client.send(IRCMessage.reply_myinfo(self.host, client.name, SERVER_NAME, SERVER_VERSION))
+        self.send_motd(client)
 
+    def send_motd(self, client):
         if self.motd:
             client.send(IRCMessage.reply_start_motd(self.host, client.name))
             client.send(IRCMessage.reply_motd(self.host, client.name, self.motd))

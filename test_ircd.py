@@ -985,3 +985,19 @@ async def test_sasl():
         assert resp == [
             ':localhost 904 * :SASL authentication failed',
         ]
+
+@pytest.mark.asyncio
+async def test_message_ids():
+    async with server_conn() as (irc, reader, writer):
+        await ident(reader, writer, irc, "foo")
+
+        await send(writer, [
+            "MOTD",
+        ])
+        resp = await readall(reader)
+        print(resp)
+        assert resp == [
+            ':localhost 375 foo :- message of the day -',
+            ':localhost 372 foo :hello world',
+            ':localhost 376 foo :- end of message -',
+        ]

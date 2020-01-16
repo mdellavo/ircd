@@ -235,6 +235,10 @@ class Handler:
         channels = self.irc.list_channels(self.client, names=channel_names)
         self.irc.send_list(self.client, channels)
 
+    @validate(identity=True)
+    def motd(self, msg):
+        self.irc.send_motd(self.client)
+
     # FIXME push to IRC
     @validate(identity=True)
     def away(self, msg):
