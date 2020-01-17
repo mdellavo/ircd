@@ -71,6 +71,7 @@ async def ident(reader, writer, irc, nick):
 
         ":localhost 003 {} :This server was created {}".format(nick, irc.created),
         ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION),
+        ':localhost 005 {} :AWAYLEN= CASEMAPPING=ascii CHANLIMIT= CHANTYPES=#'.format(nick),
         ':localhost 251 * :There are {} user(s) on {} server(s)'.format(len(irc.nicknames), len(irc.links) + 1),
         ':localhost 252 0 :There are 0 operator(s) online',
         ':localhost 254 {} :There are {} channels(s) formed'.format(len(irc.channels), len(irc.channels)),

@@ -190,7 +190,7 @@ class IRCMessage:
 
     @classmethod
     def reply_channel_mode_is(cls, prefix, target, channel, mode, params=None):
-        return cls(prefix, "324", target, channel, "+" + str(mode.mode), params or "")
+        return cls(prefix, "324", target, channel, "+" + str(mode), params or "")
 
     @classmethod
     def reply_away(cls, prefix, target, nickname, message):
@@ -359,3 +359,12 @@ class IRCMessage:
     @classmethod
     def reply_luser_me(cls, prefix, num_clients, num_servers):
         return cls(prefix, "255", "*", "I have {} client(s) and {} server(s)".format(num_clients, num_servers))
+
+    @classmethod
+    def reply_isupport(cls, prefix, target, tokens):
+        parts = []
+        for param, value in tokens:
+            part = "{}={}".format(param, value)
+            parts.append(part)
+
+        return cls(prefix, "005", target, " ".join(parts))

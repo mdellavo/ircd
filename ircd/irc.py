@@ -23,6 +23,13 @@ CAPABILITIES = [
     "sasl",
 ]
 
+ISUPPORT = {
+    "AWAYLEN": "",
+    "CASEMAPPING": "ascii",
+    "CHANLIMIT": "",
+    "CHANTYPES": "#",
+}
+
 
 class IRC:
     def __init__(self, host):
@@ -146,6 +153,8 @@ class IRC:
         client.send(IRCMessage.reply_yourhost(self.host, client.name, SERVER_NAME, SERVER_VERSION))
         client.send(IRCMessage.reply_created(self.host, client.name, self.created))
         client.send(IRCMessage.reply_myinfo(self.host, client.name, SERVER_NAME, SERVER_VERSION))
+
+        client.send(IRCMessage.reply_isupport(self.host, client.name, ISUPPORT.items()))
 
         client.send(IRCMessage.reply_luser_client(self.host, len(self.nicknames), len(self.links) + 1))
         client.send(IRCMessage.reply_luser_op(self.host, len(self.operators)))
@@ -337,7 +346,7 @@ class IRC:
         channel = self.get_channel(chan_name)
         if not channel:
             raise IRCError(IRCMessage.error_no_such_nickname(self.host, client.name, chan_name))
-        client.send(IRCMessage.reply_channel_mode_is(self.host, client.name, channel.name, str(channel.mode)))
+        client.send(IRCMessage.reply_channel_mode_is(self.host, client.name, channel.name, str(channel.mode.mode)))
 
     def set_channel_mode(self, client, target, flags, param=None):
         channel = self.get_channel(target)

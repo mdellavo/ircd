@@ -41,8 +41,8 @@ docker-compose up
 - [x] KICK
 - [x] NOTICE
 - [x] PRIVMSG
-- [ ] ISUPPORT
-- [ ] LUSERS
+- [x] ISUPPORT
+- [x] LUSERS
 - [x] MOTD
 - [ ] VERSION
 - [ ] ADMIN
