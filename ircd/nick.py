@@ -7,6 +7,7 @@ class Nickname:
     def __init__(self, nickname):
         self.nickname = nickname
         self.mode = Mode.for_nickname(self)
+        self.mode.set_flags("s")
         self.last_seen = datetime.utcnow()
         self.channels = []
         self.away_message = None

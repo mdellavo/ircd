@@ -71,6 +71,11 @@ async def ident(reader, writer, irc, nick):
 
         ":localhost 003 {} :This server was created {}".format(nick, irc.created),
         ":localhost 004 {} :{} {} abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".format(nick, SERVER_NAME, SERVER_VERSION),
+        ':localhost 251 * :There are {} user(s) on {} server(s)'.format(len(irc.nicknames), len(irc.links) + 1),
+        ':localhost 252 0 :There are 0 operator(s) online',
+        ':localhost 254 {} :There are {} channels(s) formed'.format(len(irc.channels), len(irc.channels)),
+        ':localhost 255 * :I have {} client(s) and {} server(s)'.format(len(irc.clients), len(irc.links) + 1),
+        ':localhost 221 {} :+s'.format(nick),
         ':localhost 375 {} :- message of the day -'.format(nick),
         ':localhost 372 {} :hello world'.format(nick),
         ':localhost 376 {} :- end of message -'.format(nick),
@@ -297,7 +302,7 @@ async def test_user_mode():
         await ident(reader, writer, irc, "foo")
 
         nickname = irc.nicknames["foo"]
-
+        assert nickname.mode.mode == "s"
         await send(writer, [
             "MODE foo :+i"
         ])
@@ -305,6 +310,7 @@ async def test_user_mode():
             ":foo!foo@localhost MODE foo :+i"
         ]
         assert nickname.is_invisible
+        assert nickname.mode.mode == "is"
 
         await send(writer, [
             "MODE foo :-i"
@@ -314,7 +320,7 @@ async def test_user_mode():
         ]
 
         assert not nickname.is_invisible
-        assert nickname.mode.mode == ""
+        assert nickname.mode.mode == "s"
 
 
 @pytest.mark.asyncio

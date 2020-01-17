@@ -209,9 +209,6 @@ class Mode:
         flags = [flag_class(channel) for flag_class in cls.ALL_CHANNEL_MODES]
         return cls(flags)
 
-    def __str__(self):
-        return self.mode
-
     @property
     def mode(self):
         return "".join(key for key, flag in self.flags.items() if flag.is_set())

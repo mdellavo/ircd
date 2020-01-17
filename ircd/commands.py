@@ -159,7 +159,6 @@ class Handler:
         else:
             raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, self.client.name, target))
 
-
     @validate(identity=True, num_params=1)
     def mode(self, msg):
         target = msg.args[0]
@@ -182,7 +181,7 @@ class Handler:
         channel_name = msg.args[0]
         channel = self.irc.get_channel(channel_name)
         if not channel:
-            raise IRCError(IRCMessage.error_no_such_channel(self.irc.host,  self.client.name, channel_name))
+            raise IRCError(IRCMessage.error_no_such_channel(self.irc.host, self.client.name, channel_name))
 
         if len(msg.args) > 1:
             self.irc.set_topic(self.client, channel, msg.args[1])

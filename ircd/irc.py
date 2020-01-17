@@ -146,6 +146,14 @@ class IRC:
         client.send(IRCMessage.reply_yourhost(self.host, client.name, SERVER_NAME, SERVER_VERSION))
         client.send(IRCMessage.reply_created(self.host, client.name, self.created))
         client.send(IRCMessage.reply_myinfo(self.host, client.name, SERVER_NAME, SERVER_VERSION))
+
+        client.send(IRCMessage.reply_luser_client(self.host, len(self.nicknames), len(self.links) + 1))
+        client.send(IRCMessage.reply_luser_op(self.host, len(self.operators)))
+        client.send(IRCMessage.reply_luser_chan(self.host, len(self.channels)))
+        client.send(IRCMessage.reply_luser_me(self.host, len(self.clients), len(self.links) + 1))
+
+        self.send_user_mode(client, client.name)
+
         self.send_motd(client)
 
     def send_motd(self, client):

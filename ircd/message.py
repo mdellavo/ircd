@@ -186,11 +186,11 @@ class IRCMessage:
 
     @classmethod
     def reply_user_mode_is(cls, prefix, target, mode):
-        return cls(prefix, "221", target, "+" + str(mode))
+        return cls(prefix, "221", target, "+" + str(mode.mode))
 
     @classmethod
     def reply_channel_mode_is(cls, prefix, target, channel, mode, params=None):
-        return cls(prefix, "324", target, channel, "+" + str(mode), params or "")
+        return cls(prefix, "324", target, channel, "+" + str(mode.mode), params or "")
 
     @classmethod
     def reply_away(cls, prefix, target, nickname, message):
@@ -343,3 +343,19 @@ class IRCMessage:
     @classmethod
     def reply_motd(cls, prefix, target, msg):
         return cls(prefix, "372", target, msg)
+
+    @classmethod
+    def reply_luser_client(cls, prefix, num_users, num_servers):
+        return cls(prefix, "251", "*", "There are {} user(s) on {} server(s)".format(num_users, num_servers))
+
+    @classmethod
+    def reply_luser_op(cls, prefix, num_ops):
+        return cls(prefix, "252", str(num_ops), "There are {} operator(s) online".format(num_ops))
+
+    @classmethod
+    def reply_luser_chan(cls, prefix, num_chans):
+        return cls(prefix, "254", str(num_chans), "There are {} channels(s) formed".format(num_chans))
+
+    @classmethod
+    def reply_luser_me(cls, prefix, num_clients, num_servers):
+        return cls(prefix, "255", "*", "I have {} client(s) and {} server(s)".format(num_clients, num_servers))
